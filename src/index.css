@@ -13,6 +13,8 @@
   --color-primary-2: var(--primary-2);
   --color-on-primary: var(--on-primary);
   --color-primary-soft: var(--primary-soft);
+  /* 放在卡片底色上的主題色文字，比 primary 深一階以確保對比 */
+  --color-primary-ink: var(--primary-ink);
 }
 
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
@@ -31,6 +33,7 @@
   --primary-2: #8b5cf6;
   --on-primary: #ffffff;
   --primary-soft: #eef2ff;
+  --primary-ink: #4338ca;
 }
 
 [data-theme="mint"] {
@@ -45,6 +48,7 @@
   --primary-2: #10b981;
   --on-primary: #ffffff;
   --primary-soft: #dcf3ec;
+  --primary-ink: #0f766e;
 }
 
 [data-theme="sky"] {
@@ -59,6 +63,7 @@
   --primary-2: #3b82f6;
   --on-primary: #ffffff;
   --primary-soft: #e0f2fe;
+  --primary-ink: #0369a1;
 }
 
 [data-theme="sakura"] {
@@ -73,6 +78,7 @@
   --primary-2: #f472b6;
   --on-primary: #ffffff;
   --primary-soft: #fce7f3;
+  --primary-ink: #be185d;
 }
 
 [data-theme="latte"] {
@@ -87,6 +93,7 @@
   --primary-2: #d69e2e;
   --on-primary: #ffffff;
   --primary-soft: #f7ecd9;
+  --primary-ink: #8a5a12;
 }
 
 /* ---------- 深色主題 ---------- */
@@ -102,6 +109,7 @@
   --primary-2: #a8842a;
   --on-primary: #17130a;
   --primary-soft: #2a2415;
+  --primary-ink: #e3c15a;
 }
 
 [data-theme="midnight"] {
@@ -116,6 +124,7 @@
   --primary-2: #c084fc;
   --on-primary: #0a0f1e;
   --primary-soft: #1e2350;
+  --primary-ink: #a5b4fc;
 }
 
 [data-theme="forest"] {
@@ -130,6 +139,7 @@
   --primary-2: #14b8a6;
   --on-primary: #06231a;
   --primary-soft: #133a2d;
+  --primary-ink: #6ee7b7;
 }
 
 html,

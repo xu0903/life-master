@@ -227,25 +227,77 @@ export interface WordStat {
   box: number
   /** 下次該複習的日期 YYYY-MM-DD */
   due: string
+  /** 答「我記得」的次數 */
   right: number
+  /** 答「不記得」的次數 */
   wrong: number
+  /** 答「有印象」的次數（舊資料沒有） */
+  vague?: number
+  /** 最近一次答「不記得」的日期，用於「最近常錯」 */
+  lastWrong?: string
   /** 第一次作答的日期，用來畫學習曲線 */
   first?: string
 }
 
-/** 各盒子答對後，隔幾天再複習 */
-const BOX_INTERVALS = [1, 2, 4, 7, 15, 30]
+/** 熟練度三段評分（仿 WordUp）：紅 不記得 / 黃 有印象 / 綠 我記得 */
+export type Grade = 'forgot' | 'vague' | 'good'
 
-export function nextStat(stat: WordStat | undefined, known: boolean, today: string): WordStat {
+/** 舊版每日測驗存的是 true / false */
+export function toGrade(value: Grade | boolean | undefined): Grade | undefined {
+  if (value === true) return 'good'
+  if (value === false) return 'forgot'
+  return value
+}
+
+/** 各盒子答「我記得」後，隔幾天再複習；最高盒子 = 精通 */
+const BOX_INTERVALS = [1, 2, 4, 7, 15, 30]
+export const MAX_BOX = BOX_INTERVALS.length - 1
+
+/**
+ * 依評分更新熟練度：
+ * - 不記得：回到 0，明天再複習
+ * - 有印象：退一格（至少 1），明天再複習
+ * - 我記得：升一格，間隔拉長
+ */
+export function nextStat(stat: WordStat | undefined, grade: Grade, today: string): WordStat {
   const prev = stat ?? { box: 0, due: today, right: 0, wrong: 0, first: today }
-  const box = known ? Math.min(prev.box + 1, BOX_INTERVALS.length - 1) : 0
+  const box =
+    grade === 'good' ? Math.min(prev.box + 1, MAX_BOX) : grade === 'vague' ? Math.max(1, prev.box - 1) : 0
   return {
     first: prev.first,
     box,
-    due: addDaysKey(today, known ? BOX_INTERVALS[box] : 1),
-    right: prev.right + (known ? 1 : 0),
-    wrong: prev.wrong + (known ? 0 : 1),
+    due: addDaysKey(today, grade === 'good' ? BOX_INTERVALS[box] : 1),
+    right: prev.right + (grade === 'good' ? 1 : 0),
+    wrong: prev.wrong + (grade === 'forgot' ? 1 : 0),
+    vague: (prev.vague ?? 0) + (grade === 'vague' ? 1 : 0),
+    lastWrong: grade === 'forgot' ? today : prev.lastWrong,
   }
+}
+
+export interface Mastery {
+  label: string
+  /** 0–100 */
+  percent: number
+  tone: 'none' | 'red' | 'yellow' | 'green'
+}
+
+/** 熟練度顯示：0 = 不熟、1–2 = 學習中、3–4 = 熟悉、5 = 精通 */
+export function masteryOf(stat: WordStat | undefined): Mastery {
+  if (!stat) return { label: '未學習', percent: 0, tone: 'none' }
+  const percent = Math.round((stat.box / MAX_BOX) * 100)
+  if (stat.box === 0) return { label: '不熟', percent, tone: 'red' }
+  if (stat.box <= 2) return { label: '學習中', percent, tone: 'yellow' }
+  if (stat.box < MAX_BOX) return { label: '熟悉', percent, tone: 'green' }
+  return { label: '精通', percent, tone: 'green' }
+}
+
+/** 最近 14 天內答過「不記得」的卡片，錯越多次排越前面 */
+export function recentWrongIds(stats: Record<string, WordStat>, today: string, days = 14): string[] {
+  const since = addDaysKey(today, -days)
+  return Object.entries(stats)
+    .filter(([, s]) => s.lastWrong && s.lastWrong >= since && s.box < 3)
+    .sort(([, a], [, b]) => b.wrong - a.wrong || (b.lastWrong ?? '').localeCompare(a.lastWrong ?? ''))
+    .map(([id]) => id)
 }
 
 export interface DailyPick {

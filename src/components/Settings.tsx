@@ -1,12 +1,16 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Trash2, Upload, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Trash2, Upload, Volume2, X } from 'lucide-react'
 import { HABIT_COLORS, HABIT_ICONS, VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
 import type { Habit } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useWordLevel } from '../hooks/useDailyWords'
 import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useSpeechSettings } from '../hooks/useSpeechSettings'
+import type { AutoSpeak } from '../hooks/useSpeechSettings'
+import { speak } from '../utils/speech'
+import type { Accent } from '../utils/speech'
 import { THEMES } from '../themes'
 import { downloadBackup, restoreBackup } from '../utils/backup'
 import { diffDays, toDateKey } from '../utils/date'
@@ -27,7 +31,7 @@ function ThemePicker({ themeId, onChange }: { themeId: string; onChange: (id: st
       key={id}
       onClick={() => onChange(id)}
       className={`relative flex flex-col items-center gap-1.5 rounded-xl p-2 text-xs transition ${
-        themeId === id ? 'bg-primary-soft font-semibold text-primary ring-2 ring-primary' : 'text-muted hover:bg-surface-2'
+        themeId === id ? 'bg-primary-soft font-semibold text-primary-ink ring-2 ring-primary' : 'text-muted hover:bg-surface-2'
       }`}
     >
       {preview}
@@ -271,6 +275,70 @@ function Backup() {
   )
 }
 
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex rounded-xl bg-surface-2 p-1">
+      {options.map(o => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          className={`flex-1 rounded-lg py-2 text-sm transition ${
+            value === o.value ? 'bg-surface font-semibold text-primary-ink shadow-sm' : 'text-muted'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SpeechSettingsPanel() {
+  const [settings, setSettings] = useSpeechSettings()
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-faint">預設口音</p>
+        <Segmented<Accent>
+          value={settings.accent}
+          onChange={accent => setSettings(s => ({ ...s, accent }))}
+          options={[
+            { value: 'en-US', label: '🇺🇸 美式' },
+            { value: 'en-GB', label: '🇬🇧 英式' },
+          ]}
+        />
+      </div>
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-faint">翻卡朗讀</p>
+        <Segmented<AutoSpeak>
+          value={settings.autoSpeak}
+          onChange={autoSpeak => setSettings(s => ({ ...s, autoSpeak }))}
+          options={[
+            { value: 'every', label: '每次翻卡' },
+            { value: 'first', label: '第一次翻' },
+            { value: 'off', label: '不朗讀' },
+          ]}
+        />
+      </div>
+      <button
+        onClick={() => speak('Welcome to LifeMaster', settings.accent)}
+        className="flex items-center gap-1.5 text-sm text-primary-ink"
+      >
+        <Volume2 className="h-4 w-4" /> 試聽
+      </button>
+    </div>
+  )
+}
+
 export default function Settings({ themeId, onThemeChange }: { themeId: string; onThemeChange: (id: string) => void }) {
   const [level, setLevel] = useWordLevel()
 
@@ -278,6 +346,10 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
     <div className="space-y-4">
       <Section title="🎨 主題配色">
         <ThemePicker themeId={themeId} onChange={onThemeChange} />
+      </Section>
+
+      <Section title="🔊 發音" desc="翻卡時自動念出單字；卡片上的喇叭按鈕也會把預設口音排在前面">
+        <SpeechSettingsPanel />
       </Section>
 
       <Section title="🎯 多益目標分數" desc="決定每日新字的難度範圍，明天抽題起生效">
@@ -293,7 +365,7 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
                 }`}
               >
                 <span>
-                  <span className={`font-semibold ${level === l.value ? 'text-primary' : 'text-fg'}`}>{l.label}</span>
+                  <span className={`font-semibold ${level === l.value ? 'text-primary-ink' : 'text-fg'}`}>{l.label}</span>
                   <span className="ml-2 text-xs text-muted">{l.desc}</span>
                 </span>
                 <span className="text-xs text-muted">{count} 字</span>

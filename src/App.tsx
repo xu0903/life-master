@@ -6,6 +6,7 @@ import Todos from './components/Todos'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
 import Settings from './components/Settings'
+import WordPopupProvider from './components/WordPopup'
 import { useTheme } from './themes'
 
 type TabId = 'habits' | 'todos' | 'flashcards' | 'stats' | 'settings'
@@ -31,36 +32,38 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-lg pb-[calc(5rem+env(safe-area-inset-bottom))]">
-      <header className="sticky top-0 z-10 bg-bg/85 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-3 backdrop-blur">
-        <p className="text-sm text-muted">{today}</p>
-        <h1 className="text-2xl font-bold text-fg">{activeLabel}</h1>
-      </header>
-
-      <main className="px-4 pt-2">
-        {tab === 'habits' && <Habits onManage={() => goTo('settings')} />}
-        {tab === 'todos' && <Todos />}
-        {tab === 'flashcards' && <Flashcards />}
-        {tab === 'stats' && <Stats />}
-        {tab === 'settings' && <Settings themeId={themeId} onThemeChange={setThemeId} />}
-      </main>
-
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <div className="mx-auto flex max-w-lg">
-          {TABS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => goTo(id)}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition ${
-                tab === id ? 'font-semibold text-primary' : 'text-faint'
-              }`}
-            >
-              <Icon className="h-6 w-6" strokeWidth={tab === id ? 2.4 : 2} />
-              {label}
-            </button>
-          ))}
-        </div>
-      </nav>
-    </div>
+    <WordPopupProvider>
+      <div className="mx-auto min-h-dvh max-w-lg pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        <header className="sticky top-0 z-10 bg-bg/85 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-3 backdrop-blur">
+          <p className="text-sm text-muted">{today}</p>
+          <h1 className="text-2xl font-bold text-fg">{activeLabel}</h1>
+        </header>
+  
+        <main className="px-4 pt-2">
+          {tab === 'habits' && <Habits onManage={() => goTo('settings')} />}
+          {tab === 'todos' && <Todos />}
+          {tab === 'flashcards' && <Flashcards />}
+          {tab === 'stats' && <Stats />}
+          {tab === 'settings' && <Settings themeId={themeId} onThemeChange={setThemeId} />}
+        </main>
+  
+        <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+          <div className="mx-auto flex max-w-lg">
+            {TABS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => goTo(id)}
+                className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition ${
+                  tab === id ? 'font-semibold text-primary-ink' : 'text-faint'
+                }`}
+              >
+                <Icon className="h-6 w-6" strokeWidth={tab === id ? 2.4 : 2} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
+    </WordPopupProvider>
   )
 }

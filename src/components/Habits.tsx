@@ -112,7 +112,7 @@ export default function Habits({ onManage }: { onManage: () => void }) {
                 const done = habit.completedDates.includes(key)
                 return (
                   <div key={key} className="flex flex-col items-center gap-1">
-                    <span className={`text-xs ${key === today ? 'font-bold text-primary' : 'text-faint'}`}>
+                    <span className={`text-xs ${key === today ? 'font-bold text-primary-ink' : 'text-faint'}`}>
                       {WEEKDAYS[day.getDay()]}
                     </span>
                     <span
@@ -140,9 +140,7 @@ export default function Habits({ onManage }: { onManage: () => void }) {
           words={daily.words}
           answered={daily.answered}
           reviewIds={daily.reviewIds}
-          deckIds={daily.deckIds}
           onAnswer={daily.answer}
-          onAddToDeck={daily.addToDeck}
           onClose={() => setQuizOpen(false)}
         />
       )}

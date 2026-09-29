@@ -1,5 +1,6 @@
 import { ExternalLink, Volume2 } from 'lucide-react'
 import type { MouseEvent } from 'react'
+import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import { cambridgeUrl, canSpeak, speak } from '../utils/speech'
 import type { Accent } from '../utils/speech'
 
@@ -20,12 +21,15 @@ const ACCENTS: { accent: Accent; label: string }[] = [
 const stop = (e: MouseEvent) => e.stopPropagation()
 
 export default function SpeakButtons({ text, dictionary, onPrimary }: SpeakButtonsProps) {
+  const [{ accent: preferred }] = useSpeechSettings()
   const base = onPrimary ? 'bg-black/15 text-on-primary hover:bg-black/25' : 'bg-surface-2 text-muted hover:text-fg'
+  // 預設口音排在前面
+  const accents = [...ACCENTS].sort((a, b) => Number(b.accent === preferred) - Number(a.accent === preferred))
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2" onClick={stop}>
       {canSpeak &&
-        ACCENTS.map(({ accent, label }) => (
+        accents.map(({ accent, label }) => (
           <button
             key={accent}
             type="button"

@@ -106,7 +106,7 @@ export default function Todos() {
               {overdueCount > 0 && <span className="ml-2 font-medium text-rose-500">・{overdueCount} 項逾期</span>}
             </p>
           </div>
-          <p className="text-3xl font-bold text-primary">{percent}%</p>
+          <p className="text-3xl font-bold text-primary-ink">{percent}%</p>
         </div>
         <div className="mt-3 h-3 overflow-hidden rounded-full bg-surface-2">
           <div
