@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/life-master/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/life-master/logo.svg" />
+    <link rel="apple-touch-icon" href="/life-master/apple-touch-icon-180x180.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f1f5f9" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="LifeMaster" />
+    <title>LifeMaster</title>
+    <script>
+      // 在 React 載入前先套用主題，避免開啟時閃一下預設色
+      try {
+        var id = JSON.parse(localStorage.getItem('lifemaster.theme') || '"auto"')
+        var dark = matchMedia('(prefers-color-scheme: dark)').matches
+        var darkThemes = ['obsidian', 'midnight', 'forest']
+        if (id === 'auto') id = dark ? 'midnight' : 'classic'
+        document.documentElement.dataset.theme = id
+        document.documentElement.dataset.mode = darkThemes.indexOf(id) >= 0 ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/life-master/assets/index-DIU0_Sbl.js"></script>
+    <link rel="stylesheet" crossorigin href="/life-master/assets/index-CpclM3p3.css">
+  <link rel="manifest" href="/life-master/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/life-master/registerSW.js"></script></head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
