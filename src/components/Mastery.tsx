@@ -2,12 +2,13 @@ import { GRADES } from '../data/grades'
 import { MAX_BOX, masteryOf } from '../data/toeicWords'
 import type { Grade, WordStat } from '../data/toeicWords'
 
-const TONE_BG = { none: 'bg-surface-2', red: 'bg-rose-500', yellow: 'bg-amber-400', green: 'bg-emerald-500' }
+const TONE_BG = { none: 'bg-surface-2', red: 'bg-rose-500', yellow: 'bg-amber-400', green: 'bg-emerald-500', blue: 'bg-sky-500' }
 const TONE_TEXT = {
   none: 'text-faint',
   red: 'text-rose-600 dark:text-rose-400',
   yellow: 'text-amber-600 dark:text-amber-300',
   green: 'text-emerald-600 dark:text-emerald-400',
+  blue: 'text-sky-600 dark:text-sky-400',
 }
 
 /** 熟練度格子：5 格，顏色代表目前程度 */

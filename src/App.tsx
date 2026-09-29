@@ -5,6 +5,7 @@ import Habits from './components/Habits'
 import Todos from './components/Todos'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
+import ReminderBanner from './components/ReminderBanner'
 import Settings from './components/Settings'
 import WordPopupProvider from './components/WordPopup'
 import { useTheme } from './themes'
@@ -39,6 +40,8 @@ export default function App() {
           <h1 className="text-2xl font-bold text-fg">{activeLabel}</h1>
         </header>
   
+        <ReminderBanner onOpen={() => goTo('todos')} />
+
         <main className="px-4 pt-2">
           {tab === 'habits' && <Habits onManage={() => goTo('settings')} />}
           {tab === 'todos' && <Todos />}

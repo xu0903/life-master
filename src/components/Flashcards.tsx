@@ -4,6 +4,7 @@ import { Pencil, Plus, SkipForward, Star, Trash2 } from 'lucide-react'
 import CardActions from './CardActions'
 import FlipCard from './FlipCard'
 import { GradeButtons, MasteryBar } from './Mastery'
+import Practice from './Practice'
 import type { Card } from '../data/flashcards'
 import { MAX_BOX, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
 import type { Grade } from '../data/toeicWords'
@@ -33,6 +34,7 @@ export default function Flashcards() {
     useDecks()
   const [stats, setStats] = useWordStats()
   const today = toDateKey()
+  const [mode, setMode] = useState<'flip' | 'practice'>('flip')
   const [filter, setFilter] = useState<Filter>('all')
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [flipped, setFlipped] = useState(false)
@@ -132,8 +134,39 @@ export default function Flashcards() {
             ? '這個卡組還是空的，點卡片下方的「收錄」加入'
             : '這個分類沒有卡片'
 
+  const modeSwitch = (
+    <div className="flex rounded-2xl bg-surface p-1 shadow-sm">
+      {(
+        [
+          ['flip', '🃏 翻卡學習'],
+          ['practice', '✍️ 刷題模式'],
+        ] as const
+      ).map(([m, label]) => (
+        <button
+          key={m}
+          onClick={() => setMode(m)}
+          className={`flex-1 rounded-xl py-2 text-sm transition ${
+            mode === m ? 'bg-gradient-to-r from-primary to-primary-2 font-semibold text-on-primary shadow' : 'text-muted'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (mode === 'practice') {
+    return (
+      <div className="space-y-4">
+        {modeSwitch}
+        <Practice sources={filters.map(f => ({ id: f.id, label: f.label, cards: cardsFor(f.id) }))} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
+      {modeSwitch}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {filters.map(f => (
           <button

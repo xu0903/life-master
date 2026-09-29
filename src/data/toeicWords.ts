@@ -278,17 +278,17 @@ export interface Mastery {
   label: string
   /** 0–100 */
   percent: number
-  tone: 'none' | 'red' | 'yellow' | 'green'
+  tone: 'none' | 'red' | 'yellow' | 'green' | 'blue'
 }
 
-/** 熟練度顯示：0 = 不熟、1–2 = 學習中、3–4 = 熟悉、5 = 精通 */
+/** 熟練度四色：紅 不熟（0）、黃 學習中（1–2）、綠 熟悉（3–4）、藍 精通（5） */
 export function masteryOf(stat: WordStat | undefined): Mastery {
   if (!stat) return { label: '未學習', percent: 0, tone: 'none' }
   const percent = Math.round((stat.box / MAX_BOX) * 100)
   if (stat.box === 0) return { label: '不熟', percent, tone: 'red' }
   if (stat.box <= 2) return { label: '學習中', percent, tone: 'yellow' }
   if (stat.box < MAX_BOX) return { label: '熟悉', percent, tone: 'green' }
-  return { label: '精通', percent, tone: 'green' }
+  return { label: '精通', percent, tone: 'blue' }
 }
 
 /** 最近 14 天內答過「不記得」的卡片，錯越多次排越前面 */

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { PointerEvent } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { habitColor, habitIcon } from '../data/habits'
+import { masteryOf } from '../data/toeicWords'
 import { useWordStats } from '../hooks/useDailyWords'
 import { useHabits } from '../hooks/useHabits'
 import { addDays, bestStreak, calcStreak, toDateKey } from '../utils/date'
@@ -214,8 +215,13 @@ export default function Stats() {
   const monthPrefix = today.slice(0, 7)
 
   const wordStats = Object.values(stats)
-  const mastered = wordStats.filter(s => s.box >= 3).length
-  const weak = wordStats.filter(s => s.box === 0 && s.wrong > 0).length
+  const count = (tone: string) => wordStats.filter(s => masteryOf(s).tone === tone).length
+  const tiers = [
+    { label: '不熟', count: count('red'), bar: 'bg-rose-500' },
+    { label: '學習中', count: count('yellow'), bar: 'bg-amber-400' },
+    { label: '熟悉', count: count('green'), bar: 'bg-emerald-500' },
+    { label: '精通', count: count('blue'), bar: 'bg-sky-500' },
+  ]
 
   return (
     <div className="space-y-4">
@@ -233,18 +239,24 @@ export default function Stats() {
       <MonthHeatmap />
       <LearningCurve />
 
-      <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-2xl bg-surface p-3 shadow-sm">
-          <p className="text-xl font-bold text-emerald-500">{mastered}</p>
-          <p className="text-xs text-muted">熟練（連對 3 次）</p>
+      <div className="rounded-2xl bg-surface p-4 shadow-sm">
+        <p className="mb-3 font-semibold text-fg">單字熟練度</p>
+        {/* 四段堆疊條：紅 不熟 → 藍 精通，段與段之間留 2px 間隔 */}
+        <div className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-surface-2">
+          {tiers.map(t =>
+            t.count ? <div key={t.label} className={`h-full ${t.bar}`} style={{ flexGrow: t.count }} title={`${t.label} ${t.count}`} /> : null,
+          )}
         </div>
-        <div className="rounded-2xl bg-surface p-3 shadow-sm">
-          <p className="text-xl font-bold text-fg">{wordStats.length - mastered - weak}</p>
-          <p className="text-xs text-muted">學習中</p>
-        </div>
-        <div className="rounded-2xl bg-surface p-3 shadow-sm">
-          <p className="text-xl font-bold text-rose-500">{weak}</p>
-          <p className="text-xs text-muted">不熟</p>
+        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+          {tiers.map(t => (
+            <div key={t.label}>
+              <p className="text-xl font-bold text-fg">{t.count}</p>
+              <p className="flex items-center justify-center gap-1 text-xs text-muted">
+                <span className={`h-2 w-2 rounded-full ${t.bar}`} />
+                {t.label}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

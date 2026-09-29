@@ -29,6 +29,8 @@ export default defineConfig(({ command }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // 點通知時打開 App
+        importScripts: ['sw-notify.js'],
       },
     }),
   ],

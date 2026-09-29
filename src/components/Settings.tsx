@@ -9,6 +9,7 @@ import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import type { AutoSpeak } from '../hooks/useSpeechSettings'
+import { notificationPermission, requestNotificationPermission, showNotification } from '../utils/reminders'
 import { speak } from '../utils/speech'
 import type { Accent } from '../utils/speech'
 import { THEMES } from '../themes'
@@ -339,6 +340,41 @@ function SpeechSettingsPanel() {
   )
 }
 
+function NotificationPanel() {
+  const [permission, setPermission] = useState(notificationPermission())
+  const [tested, setTested] = useState<boolean | null>(null)
+
+  const status = {
+    granted: '✅ 已開啟',
+    denied: '⛔ 已被關閉，請到 iPhone 設定 → 通知 → LifeMaster 開啟',
+    default: '尚未開啟',
+    unsupported: '⚠️ 目前無法使用：iPhone 需先「加入主畫面」並從主畫面打開 App（iOS 16.4 以上）',
+  }[permission]
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted">狀態：{status}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          disabled={permission !== 'default'}
+          onClick={async () => setPermission(await requestNotificationPermission())}
+          className="rounded-xl bg-primary py-2.5 text-sm font-medium text-on-primary disabled:opacity-40"
+        >
+          開啟通知
+        </button>
+        <button
+          disabled={permission !== 'granted'}
+          onClick={async () => setTested(await showNotification('LifeMaster 測試通知', '看到這則通知代表提醒功能正常 🎉'))}
+          className="rounded-xl bg-surface-2 py-2.5 text-sm font-medium text-fg disabled:opacity-40"
+        >
+          發送測試通知
+        </button>
+      </div>
+      {tested === false && <p className="text-xs text-rose-500">測試通知發送失敗，請確認權限設定</p>}
+    </div>
+  )
+}
+
 export default function Settings({ themeId, onThemeChange }: { themeId: string; onThemeChange: (id: string) => void }) {
   const [level, setLevel] = useWordLevel()
 
@@ -350,6 +386,10 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
 
       <Section title="🔊 發音" desc="翻卡時自動念出單字；卡片上的喇叭按鈕也會把預設口音排在前面">
         <SpeechSettingsPanel />
+      </Section>
+
+      <Section title="🔔 待辦通知" desc="App 開著或切回來時會提醒；要在 App 關閉時也準時提醒，請在任務裡用「加到 iPhone 行事曆」">
+        <NotificationPanel />
       </Section>
 
       <Section title="🎯 多益目標分數" desc="決定每日新字的難度範圍，明天抽題起生效">
