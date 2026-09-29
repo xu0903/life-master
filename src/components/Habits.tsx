@@ -1,62 +1,26 @@
 import { useEffect, useState } from 'react'
-import { BookOpen, Check, ChevronRight, Droplet, Dumbbell, Flame, Languages } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Check, ChevronRight, Flame, Settings2 } from 'lucide-react'
 import DailyQuiz from './DailyQuiz'
+import { VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
 import { useDailyWords } from '../hooks/useDailyWords'
+import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { addDays, calcStreak, toDateKey } from '../utils/date'
 
-type HabitIcon = 'water' | 'exercise' | 'read' | 'vocab'
-
-interface Habit {
-  id: string
-  name: string
-  icon: HabitIcon
-  completedDates: string[]
-}
-
-const ICONS: Record<HabitIcon, { Icon: LucideIcon; color: string }> = {
-  water: { Icon: Droplet, color: 'bg-sky-100 text-sky-600' },
-  exercise: { Icon: Dumbbell, color: 'bg-orange-100 text-orange-600' },
-  read: { Icon: BookOpen, color: 'bg-emerald-100 text-emerald-600' },
-  vocab: { Icon: Languages, color: 'bg-violet-100 text-violet-600' },
-}
-
-/** 背單字由每日測驗自動打卡，不能手動切換 */
-const VOCAB_HABIT: Habit = { id: 'vocab', name: '背單字', icon: 'vocab', completedDates: [] }
-
-const DEFAULT_HABITS: Habit[] = [
-  { id: 'water', name: '喝水', icon: 'water', completedDates: [] },
-  { id: 'exercise', name: '運動', icon: 'exercise', completedDates: [] },
-  { id: 'read', name: '讀書', icon: 'read', completedDates: [] },
-  VOCAB_HABIT,
-]
-
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
-export default function Habits() {
-  const [habits, setHabits] = useLocalStorage<Habit[]>('lifemaster.habits', DEFAULT_HABITS)
+export default function Habits({ onManage }: { onManage: () => void }) {
+  const { habits, toggleDate, markDone } = useHabits()
   const [quizPromptDate, setQuizPromptDate] = useLocalStorage('lifemaster.quizPromptDate', '')
   const [quizOpen, setQuizOpen] = useState(false)
   const daily = useDailyWords()
   const today = toDateKey()
 
-  // 舊資料沒有「背單字」習慣時補上
-  useEffect(() => {
-    setHabits(prev => (prev.some(h => h.id === VOCAB_HABIT.id) ? prev : [...prev, VOCAB_HABIT]))
-  }, [setHabits])
-
   // 每日測驗做完 → 自動打卡背單字
   useEffect(() => {
-    if (!daily.complete) return
-    setHabits(prev =>
-      prev.map(h =>
-        h.id === VOCAB_HABIT.id && !h.completedDates.includes(today)
-          ? { ...h, completedDates: [...h.completedDates, today] }
-          : h,
-      ),
-    )
-  }, [daily.complete, today, setHabits])
+    if (daily.complete) markDone(VOCAB_HABIT.id, today)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markDone 每次 render 都是新函式，只在完成狀態改變時執行
+  }, [daily.complete, today])
 
   // 每天第一次打開時自動跳出測驗
   useEffect(() => {
@@ -68,74 +32,66 @@ export default function Habits() {
 
   // 最近 7 天（含今天），用來顯示小圓點紀錄
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i - 6))
-
-  const toggleToday = (id: string) => {
-    setHabits(prev =>
-      prev.map(h => {
-        if (h.id !== id) return h
-        const done = h.completedDates.includes(today)
-        return {
-          ...h,
-          completedDates: done
-            ? h.completedDates.filter(d => d !== today)
-            : [...h.completedDates, today],
-        }
-      }),
-    )
-  }
-
   const doneCount = habits.filter(h => h.completedDates.includes(today)).length
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 p-5 text-white shadow-lg">
+      <div className="rounded-2xl bg-gradient-to-br from-primary to-primary-2 p-5 text-on-primary shadow-lg">
         <p className="text-sm opacity-80">今日完成</p>
         <p className="mt-1 text-3xl font-bold">
           {doneCount} <span className="text-lg font-medium opacity-80">/ {habits.length} 個習慣</span>
         </p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
+          <div
+            className="h-full rounded-full bg-current transition-all duration-500"
+            style={{ width: `${habits.length ? (doneCount / habits.length) * 100 : 0}%` }}
+          />
+        </div>
       </div>
 
       {daily.ready && (
         <button
           onClick={() => setQuizOpen(true)}
-          className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-violet-100 transition active:scale-[0.98]"
+          className="flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-2xl">📖</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft text-2xl">📖</div>
           <div className="flex-1">
-            <p className="font-semibold text-slate-800">每日多益 10 字</p>
-            <p className="text-sm text-slate-500">
-              {daily.complete ? '今天已完成，點擊複習' : `進度 ${daily.answeredCount} / ${daily.words.length}，完成自動打卡`}
+            <p className="font-semibold text-fg">每日多益 10 字</p>
+            <p className="text-sm text-muted">
+              {daily.complete
+                ? '今天已完成，點擊複習'
+                : `進度 ${daily.answeredCount} / ${daily.words.length}` +
+                  (daily.reviewIds.size ? `・含 ${daily.reviewIds.size} 個複習字` : '')}
             </p>
           </div>
-          <ChevronRight className="h-5 w-5 text-slate-300" />
+          <ChevronRight className="h-5 w-5 text-faint" />
         </button>
       )}
 
       {habits.map(habit => {
-        const { Icon, color } = ICONS[habit.icon]
+        const Icon = habitIcon(habit)
+        const color = habitColor(habit)
         const doneToday = habit.completedDates.includes(today)
         const streak = calcStreak(habit.completedDates)
         const isVocab = habit.id === VOCAB_HABIT.id
 
         return (
-          <div key={habit.id} className="rounded-2xl bg-white p-4 shadow-sm">
+          <div key={habit.id} className="rounded-2xl bg-surface p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color}`}>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color.chip}`}>
                 <Icon className="h-6 w-6" />
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-slate-800">{habit.name}</p>
-                <p className="flex items-center gap-1 text-sm text-slate-500">
-                  <Flame className={`h-4 w-4 ${streak > 0 ? 'text-orange-500' : 'text-slate-300'}`} />
-                  連續 <span className="font-bold text-slate-700">{streak}</span> 天
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-fg">{habit.name}</p>
+                <p className="flex items-center gap-1 text-sm text-muted">
+                  <Flame className={`h-4 w-4 ${streak > 0 ? 'text-orange-500' : 'text-faint'}`} />
+                  連續 <span className="font-bold text-fg">{streak}</span> 天
                 </p>
               </div>
               <button
-                onClick={() => (isVocab ? setQuizOpen(true) : toggleToday(habit.id))}
-                className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition active:scale-95 ${
-                  doneToday
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                onClick={() => (isVocab ? setQuizOpen(true) : toggleDate(habit.id, today))}
+                className={`flex shrink-0 items-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition active:scale-95 ${
+                  doneToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-surface-2 text-muted'
                 }`}
               >
                 {doneToday ? (
@@ -156,12 +112,12 @@ export default function Habits() {
                 const done = habit.completedDates.includes(key)
                 return (
                   <div key={key} className="flex flex-col items-center gap-1">
-                    <span className={`text-xs ${key === today ? 'font-bold text-indigo-600' : 'text-slate-400'}`}>
+                    <span className={`text-xs ${key === today ? 'font-bold text-primary' : 'text-faint'}`}>
                       {WEEKDAYS[day.getDay()]}
                     </span>
                     <span
-                      className={`h-6 w-6 rounded-full ${done ? 'bg-emerald-400' : 'bg-slate-100'} ${
-                        key === today ? 'ring-2 ring-indigo-300 ring-offset-1' : ''
+                      className={`h-6 w-6 rounded-full ${done ? color.dot : 'bg-surface-2'} ${
+                        key === today ? 'ring-2 ring-primary/50 ring-offset-1 ring-offset-surface' : ''
                       }`}
                     />
                   </div>
@@ -172,10 +128,18 @@ export default function Habits() {
         )
       })}
 
+      <button
+        onClick={onManage}
+        className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line py-3 text-sm text-muted transition hover:bg-surface"
+      >
+        <Settings2 className="h-4 w-4" /> 新增或管理習慣
+      </button>
+
       {quizOpen && (
         <DailyQuiz
           words={daily.words}
           answered={daily.answered}
+          reviewIds={daily.reviewIds}
           deckIds={daily.deckIds}
           onAnswer={daily.answer}
           onAddToDeck={daily.addToDeck}

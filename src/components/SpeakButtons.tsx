@@ -7,8 +7,8 @@ interface SpeakButtonsProps {
   text: string
   /** 顯示劍橋字典連結（只適用單字，不適用例句） */
   dictionary?: boolean
-  /** 在深色背景上使用 */
-  light?: boolean
+  /** 放在主色漸層背景上使用 */
+  onPrimary?: boolean
 }
 
 const ACCENTS: { accent: Accent; label: string }[] = [
@@ -19,10 +19,8 @@ const ACCENTS: { accent: Accent; label: string }[] = [
 // 卡片本身點了會翻面，所以按鈕要阻止事件往上傳
 const stop = (e: MouseEvent) => e.stopPropagation()
 
-export default function SpeakButtons({ text, dictionary, light }: SpeakButtonsProps) {
-  const base = light
-    ? 'bg-white/20 text-white hover:bg-white/30'
-    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+export default function SpeakButtons({ text, dictionary, onPrimary }: SpeakButtonsProps) {
+  const base = onPrimary ? 'bg-black/15 text-on-primary hover:bg-black/25' : 'bg-surface-2 text-muted hover:text-fg'
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2" onClick={stop}>

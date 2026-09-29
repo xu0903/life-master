@@ -1,6 +1,23 @@
 import type { Card } from './flashcards'
+import { addDaysKey } from '../utils/date'
+import { WORDS_600 } from './words600'
+import { WORDS_800 } from './words800'
+import { WORDS_900 } from './words900'
+
+export type Level = 600 | 800 | 900
+
+export const LEVELS: { value: Level; label: string; desc: string }[] = [
+  { value: 600, label: '600 分', desc: '基礎職場單字' },
+  { value: 800, label: '800 分', desc: '600 + 進階商務' },
+  { value: 900, label: '900 分以上', desc: '全部單字，含高階字彙' },
+]
+
+// 欄位：單字, KK 音標, 詞性, 中文, 英英解釋, 同義詞, 反義詞, 例句, 例句翻譯
+// 同義詞 / 反義詞以「, 」分隔，沒有則留空字串
+export type RawWord = [string, string, string, string, string, string, string, string, string]
 
 export interface WordInfo {
+  level: Level
   word: string
   kk: string
   pos: string
@@ -13,9 +30,8 @@ export interface WordInfo {
   exZh: string
 }
 
-// 欄位：單字, KK 音標, 詞性, 中文, 英英解釋, 同義詞, 反義詞, 例句, 例句翻譯
-// 同義詞 / 反義詞以「, 」分隔，沒有則留空字串
-const RAW: [string, string, string, string, string, string, string, string, string][] = [
+// 核心 120 字，分級見下方 CORE_900 / CORE_800，其餘為 600
+const CORE: RawWord[] = [
   ['agenda', '[əˋdʒɛndə]', 'n.', '議程', 'a list of things to be discussed at a meeting', 'schedule, program', '', "Let's move on to the next item on the agenda.", '我們進行議程的下一項吧。'],
   ['appointment', '[əˋpɔɪntmənt]', 'n.', '約會；預約；任命', 'an arrangement to meet someone at a particular time', 'meeting, engagement', '', 'I have a dental appointment at 3 p.m.', '我下午三點約了看牙醫。'],
   ['approve', '[əˋpruv]', 'v.', '批准；贊成', 'to officially accept a plan, request, or idea', 'authorize, accept', 'reject, deny', 'The manager approved my vacation request.', '經理批准了我的休假申請。'],
@@ -138,9 +154,25 @@ const RAW: [string, string, string, string, string, string, string, string, stri
   ['anticipate', '[ænˋtɪsəˏpet]', 'v.', '預期；期待', 'to expect that something will happen', 'expect, predict', '', 'We anticipate strong demand for the new model.', '我們預期新車款的需求會很強勁。'],
 ]
 
+const CORE_900 = new Set(
+  'reimburse itinerary compliance comprehensive consecutive eligible feasible mandatory preliminary tentative subsidiary adjacent fluctuate complimentary personnel accommodate merger prospective specification substantial terminate enclose surplus audit'.split(' '),
+)
+const CORE_800 = new Set(
+  'distribute estimate facility merchandise negotiate recruit revenue warranty inventory quarterly renovation subscription venue acquire assess assign customize defective enhance implement inquiry notify outstanding qualified reference relocate representative revise transaction valid wholesale considerable evaluate exceed incentive maintenance objective occupy on-site payroll punctual questionnaire shareholder utility dispatch anticipate headquarters brochure applicant expire forecast inspect tenant'.split(' '),
+)
+const coreLevel = (word: string): Level => (CORE_900.has(word) ? 900 : CORE_800.has(word) ? 800 : 600)
+
 const split = (s: string) => (s ? s.split(', ') : [])
 
-export const WORD_INFO: WordInfo[] = RAW.map(([word, kk, pos, zh, def, syn, ant, ex, exZh]) => ({
+const ALL: [Level, RawWord][] = [
+  ...CORE.map(w => [coreLevel(w[0]), w] as [Level, RawWord]),
+  ...WORDS_600.map(w => [600, w] as [Level, RawWord]),
+  ...WORDS_800.map(w => [800, w] as [Level, RawWord]),
+  ...WORDS_900.map(w => [900, w] as [Level, RawWord]),
+]
+
+export const WORD_INFO: WordInfo[] = ALL.map(([level, [word, kk, pos, zh, def, syn, ant, ex, exZh]]) => ({
+  level,
   word,
   kk,
   pos,
@@ -186,14 +218,79 @@ function shuffle<T>(items: T[], random: () => number): T[] {
   return result
 }
 
-/** 抽出今日單字：優先抽還沒學過的，不夠時再從全部單字補。 */
-export function pickDailyWords(dateKey: string, learnedIds: Set<string>, count = 10): string[] {
-  const random = seededRandom(dateKey)
-  const fresh = shuffle(TOEIC_WORDS.filter(w => !learnedIds.has(w.id)), random)
-  const picked = fresh.slice(0, count)
-  if (picked.length < count) {
-    const rest = shuffle(TOEIC_WORDS.filter(w => !picked.includes(w)), random)
-    picked.push(...rest.slice(0, count - picked.length))
+const LEVEL_OF = new Map(WORD_INFO.map(w => [`toeic-${w.word}`, w.level]))
+
+// ---------- 間隔重複（Leitner 盒子法） ----------
+
+export interface WordStat {
+  /** 0 = 不熟，數字越大越熟 */
+  box: number
+  /** 下次該複習的日期 YYYY-MM-DD */
+  due: string
+  right: number
+  wrong: number
+  /** 第一次作答的日期，用來畫學習曲線 */
+  first?: string
+}
+
+/** 各盒子答對後，隔幾天再複習 */
+const BOX_INTERVALS = [1, 2, 4, 7, 15, 30]
+
+export function nextStat(stat: WordStat | undefined, known: boolean, today: string): WordStat {
+  const prev = stat ?? { box: 0, due: today, right: 0, wrong: 0, first: today }
+  const box = known ? Math.min(prev.box + 1, BOX_INTERVALS.length - 1) : 0
+  return {
+    first: prev.first,
+    box,
+    due: addDaysKey(today, known ? BOX_INTERVALS[box] : 1),
+    right: prev.right + (known ? 1 : 0),
+    wrong: prev.wrong + (known ? 0 : 1),
   }
-  return picked.map(w => w.id)
+}
+
+export interface DailyPick {
+  ids: string[]
+  review: string[]
+}
+
+/**
+ * 抽出今日單字：
+ * 1. 先放到期該複習的字（不熟的優先），最多 reviewMax 個
+ * 2. 其餘抽目標分數內還沒學過的新字
+ * 3. 新字不夠時，再用其他到期字、最後用全部單字補滿
+ * 以日期當亂數種子，同一天重複呼叫結果相同。
+ */
+export function pickDailyWords(opts: {
+  dateKey: string
+  learnedIds: Set<string>
+  stats: Record<string, WordStat>
+  maxLevel: Level
+  count?: number
+  reviewMax?: number
+}): DailyPick {
+  const { dateKey, learnedIds, stats, maxLevel, count = 10, reviewMax = 4 } = opts
+  const random = seededRandom(dateKey)
+
+  const due = Object.entries(stats)
+    .filter(([id, s]) => s.due <= dateKey && LEVEL_OF.has(id))
+    .sort(([, a], [, b]) => a.box - b.box || a.due.localeCompare(b.due))
+    .map(([id]) => id)
+
+  const review = due.slice(0, reviewMax)
+  const fresh = shuffle(
+    TOEIC_WORDS.filter(w => !learnedIds.has(w.id) && !(w.id in stats) && (LEVEL_OF.get(w.id) ?? 600) <= maxLevel),
+    random,
+  ).map(w => w.id)
+
+  const ids = [...review, ...fresh.slice(0, count - review.length)]
+  for (const id of due.slice(reviewMax)) {
+    if (ids.length >= count) break
+    ids.push(id)
+    review.push(id)
+  }
+  if (ids.length < count) {
+    const rest = shuffle(TOEIC_WORDS.filter(w => !ids.includes(w.id)), random).map(w => w.id)
+    ids.push(...rest.slice(0, count - ids.length))
+  }
+  return { ids: shuffle(ids, random), review }
 }

@@ -1,9 +1,147 @@
 @import "tailwindcss";
 
+/* 語意化顏色：元件只用這些名稱（bg-surface、text-muted、from-primary…），切換主題時只換變數 */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-2: var(--primary-2);
+  --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
+}
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+/* ---------- 淺色主題 ---------- */
+:root,
+[data-theme="classic"] {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --line: #e2e8f0;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --faint: #94a3b8;
+  --primary: #6366f1;
+  --primary-2: #8b5cf6;
+  --on-primary: #ffffff;
+  --primary-soft: #eef2ff;
+}
+
+[data-theme="mint"] {
+  --bg: #eef7f3;
+  --surface: #ffffff;
+  --surface-2: #e8f3ee;
+  --line: #d5e8df;
+  --fg: #0f2a22;
+  --muted: #5b7a6e;
+  --faint: #93ada3;
+  --primary: #0d9488;
+  --primary-2: #10b981;
+  --on-primary: #ffffff;
+  --primary-soft: #dcf3ec;
+}
+
+[data-theme="sky"] {
+  --bg: #eef5fc;
+  --surface: #ffffff;
+  --surface-2: #e9f1fa;
+  --line: #d6e4f3;
+  --fg: #0c2340;
+  --muted: #5a7394;
+  --faint: #93a8c2;
+  --primary: #0ea5e9;
+  --primary-2: #3b82f6;
+  --on-primary: #ffffff;
+  --primary-soft: #e0f2fe;
+}
+
+[data-theme="sakura"] {
+  --bg: #fdf2f5;
+  --surface: #ffffff;
+  --surface-2: #fbe9ee;
+  --line: #f5d5de;
+  --fg: #3b0d1c;
+  --muted: #8d5a6a;
+  --faint: #bf97a3;
+  --primary: #ec4899;
+  --primary-2: #f472b6;
+  --on-primary: #ffffff;
+  --primary-soft: #fce7f3;
+}
+
+[data-theme="latte"] {
+  --bg: #f6f1ea;
+  --surface: #fffdf9;
+  --surface-2: #efe7dc;
+  --line: #e4d8c7;
+  --fg: #33261a;
+  --muted: #86705a;
+  --faint: #b3a08b;
+  --primary: #b7791f;
+  --primary-2: #d69e2e;
+  --on-primary: #ffffff;
+  --primary-soft: #f7ecd9;
+}
+
+/* ---------- 深色主題 ---------- */
+[data-theme="obsidian"] {
+  --bg: #0b0b0d;
+  --surface: #17171b;
+  --surface-2: #222228;
+  --line: #2c2c33;
+  --fg: #f4f1ea;
+  --muted: #a39e93;
+  --faint: #6b675f;
+  --primary: #d4af37;
+  --primary-2: #a8842a;
+  --on-primary: #17130a;
+  --primary-soft: #2a2415;
+}
+
+[data-theme="midnight"] {
+  --bg: #0a0f1e;
+  --surface: #121a2e;
+  --surface-2: #1b2540;
+  --line: #243052;
+  --fg: #e6ebff;
+  --muted: #94a0c4;
+  --faint: #5d6a91;
+  --primary: #818cf8;
+  --primary-2: #c084fc;
+  --on-primary: #0a0f1e;
+  --primary-soft: #1e2350;
+}
+
+[data-theme="forest"] {
+  --bg: #08130f;
+  --surface: #0f1f19;
+  --surface-2: #172c24;
+  --line: #1f3a2f;
+  --fg: #e3f4ec;
+  --muted: #8fb3a3;
+  --faint: #56796a;
+  --primary: #34d399;
+  --primary-2: #14b8a6;
+  --on-primary: #06231a;
+  --primary-soft: #133a2d;
+}
+
 html,
 body {
-  background-color: var(--color-slate-100);
+  background-color: var(--bg);
+  color: var(--fg);
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.3s;
+}
+
+[data-mode="dark"] {
+  color-scheme: dark;
 }
 
 body {

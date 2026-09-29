@@ -6,10 +6,24 @@ export function toDateKey(date: Date = new Date()): string {
   return `${y}-${m}-${d}`
 }
 
+export function fromDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date)
   result.setDate(result.getDate() + days)
   return result
+}
+
+export function addDaysKey(key: string, days: number): string {
+  return toDateKey(addDays(fromDateKey(key), days))
+}
+
+/** 兩個日期相差幾天（b - a） */
+export function diffDays(a: string, b: string): number {
+  return Math.round((fromDateKey(b).getTime() - fromDateKey(a).getTime()) / 86400000)
 }
 
 /**
@@ -27,6 +41,18 @@ export function calcStreak(completedDates: string[]): number {
     cursor = addDays(cursor, -1)
   }
   return streak
+}
+
+/** 歷史最長連續天數 */
+export function bestStreak(completedDates: string[]): number {
+  const sorted = [...new Set(completedDates)].sort()
+  let best = 0
+  let run = 0
+  sorted.forEach((d, i) => {
+    run = i > 0 && diffDays(sorted[i - 1], d) === 1 ? run + 1 : 1
+    best = Math.max(best, run)
+  })
+  return best
 }
 
 export function newId(): string {
