@@ -9,6 +9,7 @@ import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import type { AutoSpeak } from '../hooks/useSpeechSettings'
+import { APP_ICONS, APP_ICON_KEY, DEFAULT_APP_ICON, appIconUrl, applyAppIcon } from '../utils/appIcon'
 import { cloudEnabled } from '../utils/cloud'
 import {
   CLOUD_BACKUP_EVENT,
@@ -304,6 +305,54 @@ function HabitManager() {
           <Plus className="h-4 w-4" /> 新增習慣
         </button>
       )}
+    </div>
+  )
+}
+
+function AppIconPicker() {
+  const [iconId, setIconId] = useLocalStorage(APP_ICON_KEY, DEFAULT_APP_ICON)
+  const standalone =
+    window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
+
+  const choose = (id: number) => {
+    setIconId(id)
+    applyAppIcon(id)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        {APP_ICONS.map(icon => (
+          <button key={icon.id} onClick={() => choose(icon.id)} className="flex flex-col items-center gap-1.5 text-xs">
+            <span className={`relative block rounded-[22%] ${iconId === icon.id ? 'ring-3 ring-primary ring-offset-2 ring-offset-surface' : ''}`}>
+              <img src={appIconUrl(icon.id)} alt={icon.name} className="aspect-square w-full rounded-[22%] shadow-md" loading="lazy" />
+              {iconId === icon.id && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-on-primary">
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+              )}
+            </span>
+            <span className={iconId === icon.id ? 'font-semibold text-primary-ink' : 'text-muted'}>{icon.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-1.5 rounded-xl bg-amber-400/15 p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+        <p className="font-semibold">換圖示前請先看這裡</p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>主畫面上的圖示是在「加入主畫面」的那一刻決定的，在這裡選了不會自動更新已經加好的圖示。</li>
+          <li>
+            要換圖示：用 <span className="font-semibold">Safari</span> 打開這個網站 → 在這裡選好圖示 → 刪掉主畫面上舊的 LifeMaster → 再「加入主畫面」一次。
+          </li>
+          <li>主畫面 App 和 Safari 的資料是分開的，所以一定要在 Safari 裡選，在主畫面 App 裡選的不會帶過去。</li>
+          <li>
+            刪掉舊的主畫面 App 會一併清掉裡面的資料。請先在下方「資料備份」開啟雲端備份並記下還原碼（或匯出備份檔），重新加入後再還原。
+          </li>
+          <li>重新加入後要再開一次通知，推播才會恢復。</li>
+          <li>通知裡顯示的小圖示固定是預設那一張。</li>
+        </ul>
+        {standalone && <p className="font-semibold">你現在是從主畫面 App 開啟的，在這裡選的圖示只會影響 App 內的顯示。</p>}
+      </div>
     </div>
   )
 }
@@ -632,6 +681,10 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
     <div className="space-y-4">
       <Section title="🎨 主題配色">
         <ThemePicker themeId={themeId} onChange={onThemeChange} />
+      </Section>
+
+      <Section title="🌱 App 圖示" desc="選一個喜歡的圖示，加入主畫面時會用這一張">
+        <AppIconPicker />
       </Section>
 
       <Section title="🔊 發音" desc="翻卡時自動念出單字；卡片上的喇叭按鈕也會把預設口音排在前面">

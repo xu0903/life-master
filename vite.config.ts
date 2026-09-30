@@ -10,7 +10,7 @@ export default defineConfig(({ command }) => ({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'logo.svg', 'apple-touch-icon-180x180.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'LifeMaster',
         short_name: 'LifeMaster',
@@ -29,6 +29,8 @@ export default defineConfig(({ command }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // 9 款可選圖示只在設定頁用到，不必全部預先快取
+        globIgnores: ['icons/**'],
         // 點通知時打開 App
         importScripts: ['sw-notify.js'],
       },

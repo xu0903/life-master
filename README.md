@@ -30,4 +30,4 @@ npm run build    # 輸出到 dist/
 npm run deploy   # 建置並發佈到 GitHub Pages（gh-pages 分支）
 ```
 
-PWA 圖示由 `public/logo.svg` 產生：`npx pwa-assets-generator`
+App 圖示由九宮格圖 `design/icon-sheet.png` 切出來：`node scripts/split-icons.mjs`（輸出到 `public/icons/`，並以第 8 格覆蓋預設的 PWA 圖示）
