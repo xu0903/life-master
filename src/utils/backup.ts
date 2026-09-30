@@ -1,7 +1,7 @@
 const PREFIX = 'lifemaster.'
 const APP = 'LifeMaster'
 
-interface BackupFile {
+export interface BackupFile {
   app: typeof APP
   version: 1
   exportedAt: string
@@ -36,7 +36,11 @@ export function downloadBackup(filename: string) {
 
 /** 讀取備份檔並寫回 localStorage，回傳還原了幾個項目。格式不符會丟出錯誤。 */
 export async function restoreBackup(file: File): Promise<number> {
-  const parsed = JSON.parse(await file.text()) as Partial<BackupFile>
+  return applyBackup(JSON.parse(await file.text()) as Partial<BackupFile>)
+}
+
+/** 把備份內容寫回 localStorage（檔案備份與雲端備份共用） */
+export function applyBackup(parsed: Partial<BackupFile>): number {
   if (parsed.app !== APP || typeof parsed.data !== 'object' || parsed.data === null) {
     throw new Error('這不是 LifeMaster 的備份檔')
   }

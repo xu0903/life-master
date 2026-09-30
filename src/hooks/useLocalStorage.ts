@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
-const SYNC_EVENT = 'lifemaster:storage'
+/** 任何 lifemaster 資料寫入 localStorage 時發出 */
+export const SYNC_EVENT = 'lifemaster:storage'
 
 function read<T>(key: string, fallback: T): T {
   try {

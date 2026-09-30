@@ -10,6 +10,19 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import type { AutoSpeak } from '../hooks/useSpeechSettings'
 import { cloudEnabled } from '../utils/cloud'
+import {
+  CLOUD_BACKUP_EVENT,
+  backupNow,
+  disableCloudBackup,
+  enableCloudBackup,
+  formatCode,
+  isCloudBackupEnabled,
+  lastCloudBackup,
+  normalizeCode,
+  recoveryCode,
+  resetRecoveryCode,
+  restoreFromCode,
+} from '../utils/cloudBackup'
 import { PUSH_EVENT, isPushEnabled } from '../utils/push'
 import { notificationPermission, requestNotificationPermission, showNotification } from '../utils/reminders'
 import { speak } from '../utils/speech'
@@ -216,6 +229,132 @@ function HabitManager() {
         >
           <Plus className="h-4 w-4" /> 新增習慣
         </button>
+      )}
+    </div>
+  )
+}
+
+function CloudBackup() {
+  const read = () => ({ enabled: isCloudBackupEnabled(), last: lastCloudBackup(), code: recoveryCode() })
+  const [state, setState] = useState(read)
+  const [busy, setBusy] = useState(false)
+  const [showCode, setShowCode] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+  const [input, setInput] = useState('')
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    const onChange = () => setState(read())
+    window.addEventListener(CLOUD_BACKUP_EVENT, onChange)
+    return () => window.removeEventListener(CLOUD_BACKUP_EVENT, onChange)
+  }, [])
+
+  if (!cloudEnabled) return null
+
+  const run = async (task: () => Promise<boolean>, okText: string) => {
+    setBusy(true)
+    const ok = await task()
+    setBusy(false)
+    setMessage(ok ? { ok: true, text: okText } : { ok: false, text: '連線失敗，請確認網路後再試一次' })
+    return ok
+  }
+
+  const enable = async () => {
+    if (await run(enableCloudBackup, '已開啟自動備份，請把還原碼抄下來或截圖保存')) setShowCode(true)
+  }
+
+  const resetCode = async () => {
+    if (!confirm('換一組新的還原碼？舊的還原碼會立刻失效。')) return
+    await run(resetRecoveryCode, '已換成新的還原碼')
+  }
+
+  const restore = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!confirm('還原會用雲端備份覆蓋這台裝置目前的資料，確定要繼續嗎？')) return
+    setBusy(true)
+    const result = await restoreFromCode(input)
+    setBusy(false)
+    if (result === 'invalid') setMessage({ ok: false, text: '還原碼不正確，請再確認一次' })
+    else if (result === 'offline') setMessage({ ok: false, text: '連線失敗，請確認網路後再試一次' })
+    else {
+      setMessage({ ok: true, text: `已還原 ${result} 個項目，重新載入中…` })
+      setTimeout(() => location.reload(), 800)
+    }
+  }
+
+  return (
+    <div className="mb-4 space-y-3 border-b border-line pb-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-fg">雲端自動備份</p>
+          <p className="text-xs text-muted">
+            {state.enabled
+              ? state.last
+                ? `上次備份：${new Date(state.last).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                : '尚未備份'
+              : '換手機或清除 Safari 資料後，用還原碼就能把資料和房間找回來'}
+          </p>
+        </div>
+        <button
+          disabled={busy}
+          onClick={state.enabled ? disableCloudBackup : enable}
+          className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium disabled:opacity-40 ${
+            state.enabled ? 'bg-surface-2 text-muted' : 'bg-primary text-on-primary'
+          }`}
+        >
+          {state.enabled ? '關閉' : '開啟'}
+        </button>
+      </div>
+
+      {state.enabled && state.code && (
+        <div className="rounded-xl bg-surface-2 p-3">
+          <p className="text-xs text-muted">還原碼（請抄下來或截圖，遺失就無法還原）</p>
+          <p className="mt-1 font-mono text-lg font-semibold tracking-wider text-fg">
+            {showCode ? formatCode(state.code) : '••••-••••-••••-••••'}
+          </p>
+          <div className="mt-2 flex gap-4 text-sm text-primary-ink">
+            <button onClick={() => setShowCode(v => !v)}>{showCode ? '隱藏' : '顯示'}</button>
+            <button disabled={busy} onClick={() => run(backupNow, '已備份到雲端')}>
+              立即備份
+            </button>
+            <button disabled={busy} onClick={resetCode}>
+              換一組
+            </button>
+          </div>
+        </div>
+      )}
+
+      {restoring ? (
+        <form onSubmit={restore} className="space-y-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value.toUpperCase())}
+            placeholder="輸入還原碼"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-center font-mono text-base tracking-wider text-fg outline-none placeholder:text-faint focus:border-primary"
+          />
+          <button
+            type="submit"
+            disabled={busy || normalizeCode(input).length < 16}
+            className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-on-primary disabled:opacity-40"
+          >
+            從雲端還原
+          </button>
+        </form>
+      ) : (
+        <button onClick={() => setRestoring(true)} className="text-sm text-primary-ink">
+          我有還原碼，要把資料還原到這台裝置
+        </button>
+      )}
+
+      {message && (
+        <p className={`flex items-start gap-1 text-sm ${message.ok ? 'text-emerald-500' : 'text-rose-500'}`}>
+          {message.ok ? <Check className="mt-0.5 h-4 w-4 shrink-0" /> : <X className="mt-0.5 h-4 w-4 shrink-0" />}
+          {message.text}
+        </p>
       )}
     </div>
   )
@@ -437,7 +576,8 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         <HabitManager />
       </Section>
 
-      <Section title="💾 資料備份" desc="資料只存在這台裝置的瀏覽器裡，清除 Safari 資料或換手機前請先備份">
+      <Section title="💾 資料備份" desc="資料存在這台裝置的瀏覽器裡；開啟雲端備份，或定期匯出檔案，清除 Safari 資料或換手機時才不會遺失">
+        <CloudBackup />
         <Backup />
       </Section>
 

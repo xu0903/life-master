@@ -9,6 +9,7 @@ import ReminderBanner from './components/ReminderBanner'
 import Rooms from './components/Rooms'
 import Settings from './components/Settings'
 import WordPopupProvider from './components/WordPopup'
+import { useCloudBackup } from './hooks/useCloudBackup'
 import { useProgressSync } from './hooks/useProgress'
 import { useTheme } from './themes'
 
@@ -27,6 +28,7 @@ export default function App() {
   const [tab, setTab] = useState<TabId>('habits')
   const { themeId, setThemeId } = useTheme()
   useProgressSync()
+  useCloudBackup()
   const activeLabel = TABS.find(t => t.id === tab)?.label
 
   const today = new Date().toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' })
