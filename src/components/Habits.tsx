@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Check, ChevronRight, Flame, Settings2 } from 'lucide-react'
+import { Bell, CalendarClock, Check, ChevronRight, Flame, Minus, Plus, Settings2 } from 'lucide-react'
 import DailyQuiz from './DailyQuiz'
-import { VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
+import { VOCAB_HABIT, habitColor, habitIcon, habitStreak, isHabitDone, weekCount } from '../data/habits'
 import { useDailyWords } from '../hooks/useDailyWords'
 import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { addDays, calcStreak, toDateKey } from '../utils/date'
+import { addDays, diffDays, toDateKey } from '../utils/date'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
 export default function Habits({ onManage }: { onManage: () => void }) {
-  const { habits, toggleDate, markDone } = useHabits()
+  const { habits, toggleDate, markDone, addCount } = useHabits()
+  const [examDate] = useLocalStorage('lifemaster.examDate', '')
   const [quizPromptDate, setQuizPromptDate] = useLocalStorage('lifemaster.quizPromptDate', '')
   const [quizOpen, setQuizOpen] = useState(false)
   const daily = useDailyWords()
@@ -32,7 +33,8 @@ export default function Habits({ onManage }: { onManage: () => void }) {
 
   // 最近 7 天（含今天），用來顯示小圓點紀錄
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i - 6))
-  const doneCount = habits.filter(h => h.completedDates.includes(today)).length
+  const doneCount = habits.filter(h => isHabitDone(h, today)).length
+  const examDays = examDate ? diffDays(today, examDate) : -1
 
   return (
     <div className="space-y-4">
@@ -47,6 +49,12 @@ export default function Habits({ onManage }: { onManage: () => void }) {
             style={{ width: `${habits.length ? (doneCount / habits.length) * 100 : 0}%` }}
           />
         </div>
+        {examDays >= 0 && (
+          <p className="mt-3 flex items-center gap-1.5 text-sm opacity-90">
+            <CalendarClock className="h-4 w-4" />
+            {examDays === 0 ? '今天就是多益考試，加油！' : `距離多益考試還有 ${examDays} 天`}
+          </p>
+        )}
       </div>
 
       {daily.ready && (
@@ -72,8 +80,10 @@ export default function Habits({ onManage }: { onManage: () => void }) {
         const Icon = habitIcon(habit)
         const color = habitColor(habit)
         const doneToday = habit.completedDates.includes(today)
-        const streak = calcStreak(habit.completedDates)
+        const streak = habitStreak(habit)
         const isVocab = habit.id === VOCAB_HABIT.id
+        const counted = !isVocab && (habit.target ?? 1) > 1
+        const count = habit.counts?.[today] ?? 0
 
         return (
           <div key={habit.id} className="rounded-2xl bg-surface p-4 shadow-sm">
@@ -83,11 +93,49 @@ export default function Habits({ onManage }: { onManage: () => void }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-fg">{habit.name}</p>
-                <p className="flex items-center gap-1 text-sm text-muted">
-                  <Flame className={`h-4 w-4 ${streak > 0 ? 'text-orange-500' : 'text-faint'}`} />
-                  連續 <span className="font-bold text-fg">{streak}</span> 天
+                <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-muted">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
+                    <Flame className={`h-4 w-4 ${streak.count > 0 ? 'text-orange-500' : 'text-faint'}`} />
+                    連續 <span className="font-bold text-fg">{streak.count}</span> {streak.unit}
+                  </span>
+                  {habit.weeklyTarget && (
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-xs whitespace-nowrap">
+                      本週 {weekCount(habit)}/{habit.weeklyTarget}
+                    </span>
+                  )}
+                  {habit.remindTime && (
+                    <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-faint">
+                      <Bell className="h-3 w-3" />
+                      {habit.remindTime}
+                    </span>
+                  )}
                 </p>
               </div>
+              {counted ? (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={() => addCount(habit.id, today, -1)}
+                    disabled={count === 0}
+                    className="rounded-full bg-surface-2 p-2 text-muted disabled:opacity-30"
+                    aria-label="減一"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className={`min-w-14 text-center text-sm font-semibold tabular-nums ${doneToday ? 'text-emerald-500' : 'text-fg'}`}>
+                    {count}/{habit.target}
+                    {habit.unit && <span className="ml-0.5 text-xs font-normal text-muted">{habit.unit}</span>}
+                  </span>
+                  <button
+                    onClick={() => addCount(habit.id, today, 1)}
+                    className={`rounded-full p-2 transition active:scale-95 ${
+                      doneToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-primary text-on-primary'
+                    }`}
+                    aria-label="加一"
+                  >
+                    {doneToday ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  </button>
+                </div>
+              ) : (
               <button
                 onClick={() => (isVocab ? setQuizOpen(true) : toggleDate(habit.id, today))}
                 className={`flex shrink-0 items-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition active:scale-95 ${
@@ -104,6 +152,7 @@ export default function Habits({ onManage }: { onManage: () => void }) {
                   '打卡'
                 )}
               </button>
+              )}
             </div>
 
             <div className="mt-4 flex justify-between">

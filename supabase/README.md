@@ -26,6 +26,7 @@ Dashboard → SQL Editor，依序執行：
 1. `supabase/schema.sql`（整段貼上）
 2. `supabase/config.sql.local`（存放排程用的密鑰，這個檔案不會進版本庫）
 3. `supabase/backup.sql`（雲端備份與還原碼）
+4. `supabase/rooms-update.sql`（鼓勵訊息、每晚 9 點自動提醒還沒打卡的夥伴）
 
 ## 4. 部署推播函式
 

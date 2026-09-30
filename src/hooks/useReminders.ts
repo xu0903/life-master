@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useLocalStorage } from './useLocalStorage'
+import { DEFAULT_HABITS, HABITS_KEY, isHabitDone } from '../data/habits'
+import type { Habit } from '../data/habits'
+import { POMODORO_INITIAL, POMODORO_KEY } from '../data/pomodoro'
+import type { PomodoroState } from '../data/pomodoro'
 import { TODOS_KEY, formatDue, reminderAt } from '../data/todos'
 import type { Todo } from '../data/todos'
 import { PUSH_EVENT, enablePush, isPushEnabled, syncReminders } from '../utils/push'
+import { addDays, toDateKey } from '../utils/date'
 import { showNotification } from '../utils/reminders'
 
 /** 超過這個時間才發現的提醒，視為雲端推播已經通知過，只顯示橫幅 */
@@ -16,6 +21,8 @@ const LATE_MS = 90000
 export function useReminders() {
   const [todos, setTodos] = useLocalStorage<Todo[]>(TODOS_KEY, [])
   const [alerts, setAlerts] = useState<Todo[]>([])
+  const [habits] = useLocalStorage<Habit[]>(HABITS_KEY, DEFAULT_HABITS)
+  const [pomodoro] = useLocalStorage<PomodoroState>(POMODORO_KEY, POMODORO_INITIAL)
 
   useEffect(() => {
     const check = () => {
@@ -53,7 +60,7 @@ export function useReminders() {
     return () => window.removeEventListener(PUSH_EVENT, onChange)
   }, [])
 
-  // 待辦有變動就把還沒到期的提醒同步到雲端（稍等一下，避免連續編輯時一直送）
+  // 待辦、習慣提醒或番茄鐘有變動，就把還沒到期的提醒同步到雲端（稍等一下，避免連續編輯時一直送）
   useEffect(() => {
     if (!pushOn) return
     const timer = window.setTimeout(() => {
@@ -63,10 +70,31 @@ export function useReminders() {
         if (t.done || t.notifiedAt || !at || at.getTime() <= now) return []
         return [{ ref: t.id, title: t.text, body: `${formatDue(t)} 到期`, fire_at: at.toISOString() }]
       })
+      // 習慣提醒：先排好未來 7 天，今天已達標的就不提醒
+      for (const h of habits) {
+        if (!h.remindTime) continue
+        const [hh, mm] = h.remindTime.split(':').map(Number)
+        for (let d = 0; d < 7; d++) {
+          const day = addDays(new Date(), d)
+          const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm)
+          if (at.getTime() <= now || (d === 0 && isHabitDone(h))) continue
+          items.push({ ref: `habit:${h.id}:${toDateKey(day)}`, title: `該「${h.name}」了`, body: '今天還沒打卡', fire_at: at.toISOString() })
+        }
+      }
+      // 番茄鐘：App 切到背景時也能在時間到的時候通知
+      if (pomodoro.endAt && pomodoro.endAt > now) {
+        const focus = pomodoro.mode === 'focus'
+        items.push({
+          ref: 'pomodoro',
+          title: focus ? '番茄鐘時間到' : '休息結束',
+          body: focus ? '休息 5 分鐘吧' : '開始下一個番茄鐘',
+          fire_at: new Date(pomodoro.endAt).toISOString(),
+        })
+      }
       void syncReminders(items)
     }, 2000)
     return () => window.clearTimeout(timer)
-  }, [todos, pushOn])
+  }, [todos, habits, pomodoro.endAt, pomodoro.mode, pushOn])
 
   const dismiss = (id: string) => setAlerts(prev => prev.filter(t => t.id !== id))
 

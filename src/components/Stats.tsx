@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import type { PointerEvent } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react'
 import { habitColor, habitIcon } from '../data/habits'
+import { LISTENING_HISTORY_KEY } from '../data/listening'
+import type { ListeningRecord } from '../data/listening'
+import { READING_HISTORY_KEY } from '../data/reading'
+import type { ReadingRecord } from '../data/reading'
+import { TODOS_KEY } from '../data/todos'
+import type { Todo } from '../data/todos'
 import { masteryOf } from '../data/toeicWords'
 import { useWordStats } from '../hooks/useDailyWords'
 import { useHabits } from '../hooks/useHabits'
-import { addDays, bestStreak, calcStreak, toDateKey } from '../utils/date'
+import { useLocalStorage } from '../hooks/useLocalStorage'
+import { addDays, bestStreak, calcStreak, toDateKey, weekKeys } from '../utils/date'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 // 熱力圖 5 階：同一個主色，用透明度表示完成比例
@@ -19,6 +26,66 @@ function StatTile({ label, value, unit }: { label: string; value: number; unit: 
         {value}
         <span className="ml-1 text-sm font-medium text-muted">{unit}</span>
       </p>
+    </div>
+  )
+}
+
+/** 本週回顧：這週（週一起）和上週的比較 */
+function WeeklyReview() {
+  const { habits } = useHabits()
+  const [stats] = useWordStats()
+  const [todos] = useLocalStorage<Todo[]>(TODOS_KEY, [])
+  const [reading] = useLocalStorage<ReadingRecord[]>(READING_HISTORY_KEY, [])
+  const [listening] = useLocalStorage<ListeningRecord[]>(LISTENING_HISTORY_KEY, [])
+
+  const measure = (keys: string[]) => {
+    const week = new Set(keys)
+    const tests = [...reading, ...listening].filter(r => week.has(r.date))
+    const total = tests.reduce((n, r) => n + r.total, 0)
+    return {
+      checkins: habits.reduce((n, h) => n + h.completedDates.filter(d => week.has(d)).length, 0),
+      words: Object.values(stats).filter(s => week.has(s.first ?? '')).length,
+      todos: todos.filter(t => t.done && week.has(t.completedDate ?? '')).length,
+      questions: total,
+      accuracy: total ? Math.round((tests.reduce((n, r) => n + r.correct, 0) / total) * 100) : null,
+    }
+  }
+  const now = measure(weekKeys())
+  const last = measure(weekKeys(addDays(new Date(), -7)))
+
+  const rows: { label: string; value: string; delta: number | null }[] = [
+    { label: '習慣打卡', value: `${now.checkins} 次`, delta: now.checkins - last.checkins },
+    { label: '新學單字', value: `${now.words} 字`, delta: now.words - last.words },
+    { label: '完成待辦', value: `${now.todos} 項`, delta: now.todos - last.todos },
+    { label: '測驗題數', value: `${now.questions} 題`, delta: now.questions - last.questions },
+    {
+      label: '測驗答對率',
+      value: now.accuracy === null ? '—' : `${now.accuracy}%`,
+      delta: now.accuracy !== null && last.accuracy !== null ? now.accuracy - last.accuracy : null,
+    },
+  ]
+
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-sm">
+      <p className="font-semibold text-fg">本週回顧</p>
+      <p className="mb-2 text-xs text-faint">週一到今天，和上週整週比較</p>
+      <ul className="divide-y divide-line">
+        {rows.map(r => (
+          <li key={r.label} className="flex items-center justify-between py-2 text-sm">
+            <span className="text-muted">{r.label}</span>
+            <span className="flex items-center gap-2">
+              <span className="font-semibold text-fg tabular-nums">{r.value}</span>
+              {r.delta !== null && r.delta !== 0 && (
+                <span className={`flex w-12 items-center justify-end gap-0.5 text-xs tabular-nums ${r.delta > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {r.delta > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                  {Math.abs(r.delta)}
+                </span>
+              )}
+              {(r.delta === null || r.delta === 0) && <span className="w-12 text-right text-xs text-faint">—</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -236,6 +303,7 @@ export default function Stats() {
         <StatTile label="📚 學過的單字" value={wordStats.length} unit="字" />
       </div>
 
+      <WeeklyReview />
       <MonthHeatmap />
       <LearningCurve />
 

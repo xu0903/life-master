@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { BellRing, Check, Copy, Crown, Flame, LogOut, Pencil, Plus, Share2, UserMinus, X } from 'lucide-react'
+import { BellRing, Check, Copy, Crown, Flame, Heart, LogOut, Pencil, Plus, Share2, Trophy, UserMinus, X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useProgress } from '../hooks/useProgress'
 import { cloudEnabled } from '../utils/cloud'
-import { toDateKey } from '../utils/date'
+import { toDateKey, weekKeys } from '../utils/date'
 import { PUSH_EVENT, isPushEnabled } from '../utils/push'
 import {
   createRoom,
@@ -20,7 +20,8 @@ import {
 } from '../utils/rooms'
 import type { Member, Nudge, Room } from '../utils/rooms'
 
-const NUDGES = ['快去打卡！', '今天單字背了嗎？', '待辦還沒做完喔', '一起加油！']
+const NUDGES = ['快去打卡！', '今天單字背了嗎？', '待辦還沒做完喔']
+const CHEERS = ['做得好！', '太強了', '繼續保持', '一起加油！']
 
 const inputClass =
   'w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-base text-fg outline-none placeholder:text-faint focus:border-primary focus:ring-2 focus:ring-primary/20'
@@ -122,7 +123,7 @@ function MemberRow({
   userId: string
   onChanged: () => void
 }) {
-  const [picking, setPicking] = useState(false)
+  const [picking, setPicking] = useState<'nudge' | 'cheer' | null>(null)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const isMe = member.user_id === userId
   const isOwner = room.owner === userId
@@ -130,9 +131,10 @@ function MemberRow({
   const active = p.date === toDateKey()
 
   const nudge = async (message: string) => {
-    setPicking(false)
-    const failed = await sendNudge(member, message)
-    setNotice(failed ? { ok: false, text: failed } : { ok: true, text: '已送出督促' })
+    const cheer = picking === 'cheer'
+    setPicking(null)
+    const failed = await sendNudge(member, message, cheer)
+    setNotice(failed ? { ok: false, text: failed } : { ok: true, text: cheer ? '已送出鼓勵' : '已送出督促' })
   }
 
   const rename = async () => {
@@ -174,7 +176,14 @@ function MemberRow({
               </button>
             )}
             <button
-              onClick={() => setPicking(v => !v)}
+              onClick={() => setPicking(v => (v === 'cheer' ? null : 'cheer'))}
+              className="rounded-full bg-rose-500/15 p-2 text-rose-500 transition active:scale-95"
+              aria-label="鼓勵"
+            >
+              <Heart className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setPicking(v => (v === 'nudge' ? null : 'nudge'))}
               className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-on-primary transition active:scale-95"
             >
               <BellRing className="h-4 w-4" /> 督促
@@ -188,7 +197,7 @@ function MemberRow({
           <Stat label="習慣" value={`${p.habitsDone ?? 0}/${p.habitsTotal ?? 0}`} done={!!p.habitsTotal && p.habitsDone === p.habitsTotal} />
           <Stat label="單字" value={`${p.wordsDone ?? 0}/${p.wordsTotal ?? 0}`} done={!!p.wordsTotal && p.wordsDone === p.wordsTotal} />
           <Stat label="待辦完成" value={`${p.todosDone ?? 0}`} done={!!p.todosDone && !p.todosLeft} />
-          {!!p.reading && <Stat label="閱讀" value={`${p.reading} 題`} done />}
+          {!!p.reading && <Stat label="測驗" value={`${p.reading} 題`} done />}
           {!!p.streak && (
             <span className="flex items-center gap-0.5 rounded-lg bg-orange-500/15 px-2 py-1 text-xs font-semibold text-orange-500">
               <Flame className="h-3.5 w-3.5" /> {p.streak} 天
@@ -199,7 +208,7 @@ function MemberRow({
 
       {picking && (
         <div className="flex flex-wrap gap-1.5 pl-[3.25rem]">
-          {NUDGES.map(text => (
+          {(picking === 'cheer' ? CHEERS : NUDGES).map(text => (
             <button key={text} onClick={() => nudge(text)} className="rounded-full bg-surface-2 px-3 py-1.5 text-sm text-fg active:scale-95">
               {text}
             </button>
@@ -329,6 +338,12 @@ export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }
     (a, b) => Number(b.user_id === userId) - Number(a.user_id === userId) || score(b) - score(a),
   )
 
+  // 本週打卡次數排行；進度不是這週更新的就當作 0
+  const thisWeek = new Set(weekKeys())
+  const ranking = room.members
+    .map(m => ({ ...m, week: m.progress.date && thisWeek.has(m.progress.date) ? (m.progress.week ?? 0) : 0 }))
+    .sort((a, b) => b.week - a.week)
+
   return (
     <div className="space-y-4">
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
@@ -385,7 +400,7 @@ export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }
 
           {nudges.length > 0 && (
             <div className="rounded-2xl bg-surface p-4 shadow-sm">
-              <p className="mb-1 text-sm font-semibold text-fg">收到的督促</p>
+              <p className="mb-1 text-sm font-semibold text-fg">收到的訊息</p>
               <ul className="space-y-1">
                 {nudges.map(n => (
                   <li key={n.id} className="flex items-baseline gap-2 text-sm">
@@ -397,6 +412,26 @@ export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {ranking.length > 1 && ranking[0].week > 0 && (
+            <div className="rounded-2xl bg-surface p-4 shadow-sm">
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg">
+                <Trophy className="h-4 w-4 text-amber-500" /> 本週打卡排行
+              </p>
+              <ol className="space-y-2">
+                {ranking.map((m, i) => (
+                  <li key={m.user_id} className="flex items-center gap-2 text-sm">
+                    <span className={`w-5 text-center font-bold tabular-nums ${i === 0 ? 'text-amber-500' : 'text-faint'}`}>{i + 1}</span>
+                    <span className={`w-20 shrink-0 truncate ${m.user_id === userId ? 'font-semibold text-primary-ink' : 'text-fg'}`}>{m.nickname}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${(m.week / ranking[0].week) * 100}%` }} />
+                    </div>
+                    <span className="w-10 shrink-0 text-right text-xs text-muted tabular-nums">{m.week} 次</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
 

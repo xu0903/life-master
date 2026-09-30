@@ -191,6 +191,24 @@ export function lookupWord(word: string): WordInfo | undefined {
   return BY_WORD.get(word.trim().toLowerCase())
 }
 
+/** 查文章裡的字：找不到原形時，試著還原常見的字尾變化（複數、過去式、進行式） */
+export function lookupInflected(token: string): WordInfo | undefined {
+  const w = token.trim().toLowerCase()
+  if (w.length < 4) return BY_WORD.get(w)
+  const candidates = [w]
+  if (w.endsWith('ies')) candidates.push(w.slice(0, -3) + 'y')
+  if (w.endsWith('ied')) candidates.push(w.slice(0, -3) + 'y')
+  if (w.endsWith('es')) candidates.push(w.slice(0, -2))
+  if (w.endsWith('s')) candidates.push(w.slice(0, -1))
+  if (w.endsWith('ed')) candidates.push(w.slice(0, -2), w.slice(0, -1))
+  if (w.endsWith('ing')) candidates.push(w.slice(0, -3), w.slice(0, -3) + 'e')
+  for (const c of candidates) {
+    const info = BY_WORD.get(c)
+    if (info) return info
+  }
+  return undefined
+}
+
 export const TOEIC_WORDS: Card[] = WORD_INFO.map(w => ({
   id: `toeic-${w.word}`,
   question: w.word,

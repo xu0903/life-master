@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Pencil, Plus, SkipForward, Star, Trash2 } from 'lucide-react'
 import CardActions from './CardActions'
 import FlipCard from './FlipCard'
+import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
 import Practice from './Practice'
 import Reading from './Reading'
@@ -36,7 +37,7 @@ export default function Flashcards() {
   const [stats, setStats] = useWordStats()
   const today = toDateKey()
   // 閱讀測驗寫到一半離開的話，回來直接接著寫
-  const [mode, setMode] = useState<'flip' | 'practice' | 'reading'>(() => {
+  const [mode, setMode] = useState<'flip' | 'practice' | 'reading' | 'listening'>(() => {
     try {
       return (localStorage.getItem('lifemaster.readingSession') ?? 'null') !== 'null' ? 'reading' : 'flip'
     } catch {
@@ -146,9 +147,10 @@ export default function Flashcards() {
     <div className="flex rounded-2xl bg-surface p-1 shadow-sm">
       {(
         [
-          ['flip', '🃏 翻卡'],
-          ['practice', '✍️ 刷題'],
-          ['reading', '📄 閱讀測驗'],
+          ['flip', '翻卡'],
+          ['practice', '刷題'],
+          ['reading', '閱讀'],
+          ['listening', '聽力'],
         ] as const
       ).map(([m, label]) => (
         <button
@@ -163,6 +165,15 @@ export default function Flashcards() {
       ))}
     </div>
   )
+
+  if (mode === 'listening') {
+    return (
+      <div className="space-y-4">
+        {modeSwitch}
+        <Listening />
+      </div>
+    )
+  }
 
   if (mode === 'reading') {
     return (

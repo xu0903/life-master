@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Trash2, Upload, Volume2, X } from 'lucide-react'
 import { HABIT_COLORS, HABIT_ICONS, VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
-import type { Habit } from '../data/habits'
+import type { Habit, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useWordLevel } from '../hooks/useDailyWords'
 import { useHabits } from '../hooks/useHabits'
@@ -93,9 +93,13 @@ function HabitEditor({
   onCancel,
 }: {
   initial?: Habit
-  onSave: (name: string, icon: string, color: string) => void
+  onSave: (settings: HabitSettings) => void
   onCancel: () => void
 }) {
+  const [weekly, setWeekly] = useState(initial?.weeklyTarget ?? 0)
+  const [target, setTarget] = useState(initial?.target ? String(initial.target) : '')
+  const [unit, setUnit] = useState(initial?.unit ?? '')
+  const [remindTime, setRemindTime] = useState(initial?.remindTime ?? '')
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'health')
   const [color, setColor] = useState(initial ? Object.keys(HABIT_COLORS).find(k => HABIT_COLORS[k] === habitColor(initial)) ?? 'indigo' : 'indigo')
@@ -103,8 +107,20 @@ function HabitEditor({
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (name.trim()) onSave(name.trim(), icon, color)
+    if (!name.trim()) return
+    const count = Math.min(99, Math.floor(Number(target)))
+    onSave({
+      name: name.trim(),
+      icon,
+      color,
+      weeklyTarget: !isVocab && weekly > 0 ? weekly : undefined,
+      target: !isVocab && count > 1 ? count : undefined,
+      unit: !isVocab && count > 1 && unit.trim() ? unit.trim() : undefined,
+      remindTime: remindTime || undefined,
+    })
   }
+
+  const fieldClass = 'rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-fg outline-none focus:border-primary'
 
   return (
     <form onSubmit={submit} className="space-y-3 rounded-xl bg-surface-2 p-3">
@@ -146,6 +162,57 @@ function HabitEditor({
           />
         ))}
       </div>
+      <div className="space-y-2 text-sm text-muted">
+        {!isVocab && (
+          <>
+            <label className="flex items-center justify-between gap-2">
+              頻率
+              <select value={weekly} onChange={e => setWeekly(Number(e.target.value))} className={fieldClass}>
+                <option value={0}>每天</option>
+                {[1, 2, 3, 4, 5, 6].map(n => (
+                  <option key={n} value={n}>
+                    每週 {n} 次
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center justify-between gap-2">
+              每日目標次數
+              <span className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={99}
+                  value={target}
+                  onChange={e => setTarget(e.target.value)}
+                  placeholder="1"
+                  className={`${fieldClass} w-16 text-center`}
+                />
+                <input
+                  value={unit}
+                  onChange={e => setUnit(e.target.value)}
+                  maxLength={4}
+                  placeholder="單位"
+                  className={`${fieldClass} w-16 text-center`}
+                />
+              </span>
+            </label>
+          </>
+        )}
+        <label className="flex items-center justify-between gap-2">
+          每天提醒時間
+          <span className="flex items-center gap-1.5">
+            {remindTime && (
+              <button type="button" onClick={() => setRemindTime('')} className="text-xs text-faint underline">
+                清除
+              </button>
+            )}
+            <input type="time" value={remindTime} onChange={e => setRemindTime(e.target.value)} className={fieldClass} />
+          </span>
+        </label>
+        {remindTime && !isPushEnabled() && <p className="text-xs text-amber-600 dark:text-amber-400">要先在下方「待辦通知」開啟通知，提醒才會送出</p>}
+      </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm text-muted">
           取消
@@ -171,8 +238,8 @@ function HabitManager() {
             <HabitEditor
               key={h.id}
               initial={h}
-              onSave={(name, icon, color) => {
-                update(h.id, h.id === VOCAB_HABIT.id ? { name, color } : { name, icon, color })
+              onSave={settings => {
+                update(h.id, h.id === VOCAB_HABIT.id ? { name: settings.name, color: settings.color, remindTime: settings.remindTime } : settings)
                 setEditing(null)
               }}
               onCancel={() => setEditing(null)}
@@ -187,6 +254,13 @@ function HabitManager() {
             <span className="min-w-0 flex-1 truncate text-sm text-fg">
               {h.name}
               {h.id === VOCAB_HABIT.id && <span className="ml-1 text-xs text-faint">（自動打卡）</span>}
+              {h.weeklyTarget && <span className="ml-1 text-xs text-faint">每週 {h.weeklyTarget} 次</span>}
+              {h.target && (
+                <span className="ml-1 text-xs text-faint">
+                  每日 {h.target}
+                  {h.unit}
+                </span>
+              )}
             </span>
             <button onClick={() => move(h.id, -1)} disabled={i === 0} className="p-1.5 text-faint disabled:opacity-30" aria-label="上移">
               <ArrowUp className="h-4 w-4" />
@@ -216,8 +290,8 @@ function HabitManager() {
       })}
       {editing === 'new' ? (
         <HabitEditor
-          onSave={(name, icon, color) => {
-            add(name, icon, color)
+          onSave={settings => {
+            add(settings)
             setEditing(null)
           }}
           onCancel={() => setEditing(null)}
@@ -228,6 +302,25 @@ function HabitManager() {
           className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-line py-2.5 text-sm text-muted"
         >
           <Plus className="h-4 w-4" /> 新增習慣
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ExamDate() {
+  const [examDate, setExamDate] = useLocalStorage('lifemaster.examDate', '')
+  return (
+    <div className="flex items-center gap-3">
+      <input
+        type="date"
+        value={examDate}
+        onChange={e => setExamDate(e.target.value)}
+        className="flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-base text-fg outline-none focus:border-primary"
+      />
+      {examDate && (
+        <button onClick={() => setExamDate('')} className="text-sm text-faint underline">
+          清除
         </button>
       )}
     </div>
@@ -572,7 +665,11 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         </div>
       </Section>
 
-      <Section title="✅ 管理習慣" desc="新增、改名、換圖示顏色、調整順序">
+      <Section title="📅 多益考試日期" desc="設定後會在習慣打卡頁顯示倒數天數">
+        <ExamDate />
+      </Section>
+
+      <Section title="✅ 管理習慣" desc="新增、改名、換圖示顏色、調整順序；也能設定每週次數、每日目標與提醒時間">
         <HabitManager />
       </Section>
 

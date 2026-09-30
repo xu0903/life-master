@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import { DEFAULT_HABITS, HABITS_KEY, VOCAB_HABIT } from '../data/habits'
-import type { Habit } from '../data/habits'
+import type { Habit, HabitSettings } from '../data/habits'
 import { newId } from '../utils/date'
 
 export function useHabits() {
@@ -34,8 +34,19 @@ export function useHabits() {
       ),
     )
 
-  const add = (name: string, icon: string, color: string) =>
-    setHabits(prev => [...prev, { id: newId(), name, icon, color, completedDates: [] }])
+  /** 計量習慣加減次數；達到每日目標時自動打卡，低於目標時取消 */
+  const addCount = (id: string, date: string, delta: number) =>
+    setHabits(prev =>
+      prev.map(h => {
+        if (h.id !== id) return h
+        const count = Math.max(0, (h.counts?.[date] ?? 0) + delta)
+        const done = count >= (h.target ?? 1)
+        const others = h.completedDates.filter(d => d !== date)
+        return { ...h, counts: { ...h.counts, [date]: count }, completedDates: done ? [...others, date] : others }
+      }),
+    )
+
+  const add = (settings: HabitSettings) => setHabits(prev => [...prev, { ...settings, id: newId(), completedDates: [] }])
 
   const remove = (id: string) => setHabits(prev => prev.filter(h => h.id !== id || h.id === VOCAB_HABIT.id))
 
@@ -49,5 +60,5 @@ export function useHabits() {
       return next
     })
 
-  return { habits, update, toggleDate, markDone, add, remove, move }
+  return { habits, update, toggleDate, markDone, addCount, add, remove, move }
 }

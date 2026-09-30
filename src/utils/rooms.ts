@@ -12,7 +12,9 @@ export interface Progress {
   todosLeft: number
   wordsDone: number
   wordsTotal: number
-  /** 今天寫的閱讀題數 */
+  /** 本週（週一起）習慣打卡總次數 */
+  week: number
+  /** 今天寫的閱讀與聽力題數 */
   reading: number
 }
 
@@ -64,7 +66,7 @@ export function roomError(message: string | undefined): string {
   if (message.includes('room not found')) return '找不到這個邀請碼，請再確認一次'
   if (message.includes('room full')) return '這個房間已經滿了（上限 20 人）'
   if (message.includes('room limit')) return '最多只能加入 10 個房間'
-  if (message.includes('too fast')) return '剛剛才督促過，1 分鐘後再試'
+  if (message.includes('too fast')) return '剛剛才送過訊息，1 分鐘後再試'
   if (message.includes('name required')) return '請先填寫名稱'
   return '連線失敗，請確認網路後再試一次'
 }
@@ -132,20 +134,23 @@ export async function renameSelf(roomId: string, userId: string, nickname: strin
   await supabase?.from('room_members').update({ nickname }).eq('room_id', roomId).eq('user_id', userId)
 }
 
-export async function sendNudge(member: Member, message: string): Promise<string | null> {
+export async function sendNudge(member: Member, message: string, cheer = false): Promise<string | null> {
   if (!supabase) return roomError(undefined)
-  const { error } = await supabase.rpc('nudge', { p_room: member.room_id, p_to: member.user_id, p_message: message })
+  const args = { p_room: member.room_id, p_to: member.user_id, p_message: message }
+  let { error } = await supabase.rpc('nudge', { ...args, p_cheer: cheer })
+  // 資料庫還沒更新到支援鼓勵的版本時，退回舊的呼叫方式
+  if (error?.code === 'PGRST202') ({ error } = await supabase.rpc('nudge', args))
   return error ? roomError(error.message) : null
 }
 
-/** 最近一天內收到的督促 */
+/** 最近一天內收到的督促、鼓勵與系統提醒 */
 export async function fetchNudges(): Promise<Nudge[]> {
   if (!supabase) return []
   const since = new Date(Date.now() - 86400000).toISOString()
   const { data } = await supabase
     .from('notifications')
     .select('id, title, body, fire_at')
-    .eq('kind', 'nudge')
+    .in('kind', ['nudge', 'cheer', 'remind'])
     .gte('fire_at', since)
     .order('fire_at', { ascending: false })
     .limit(5)

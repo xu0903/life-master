@@ -55,6 +55,12 @@ export function bestStreak(completedDates: string[]): number {
   return best
 }
 
+/** 這一週（週一開始）的 7 個日期 */
+export function weekKeys(date: Date = new Date()): string[] {
+  const monday = addDays(date, -((date.getDay() + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => toDateKey(addDays(monday, i)))
+}
+
 export function newId(): string {
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }

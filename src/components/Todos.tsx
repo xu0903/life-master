@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Bell, BellOff, CalendarClock, CalendarPlus, Check, ChevronDown, Clock, Plus, Trash2, X } from 'lucide-react'
+import Pomodoro from './Pomodoro'
 import { CATEGORIES, DEFAULT_REMIND, PRIORITIES, REMIND_OPTIONS, TODOS_KEY, formatDue, reminderAt } from '../data/todos'
 import type { Priority, RemindOption, Todo } from '../data/todos'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -272,6 +273,7 @@ export default function Todos() {
 
   return (
     <div className="space-y-4">
+      <Pomodoro />
       <div className="rounded-2xl bg-surface p-5 shadow-sm">
         <div className="flex items-end justify-between">
           <div>

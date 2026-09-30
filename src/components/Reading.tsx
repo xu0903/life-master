@@ -1,16 +1,31 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Clock, FileText, RotateCcw, Timer, Trophy, X } from 'lucide-react'
-import { FULL_TEST_MINUTES, READING_HISTORY_KEY, READING_TESTS, SECTIONS, estimateScore, fillBlanks } from '../data/reading'
-import type { ReadingGroup, ReadingQuestion, ReadingRecord, ReadingTest, SectionId } from '../data/reading'
+import { ArrowLeft, ArrowRight, BookX, ChevronDown, Clock, FileText, RotateCcw, Sparkles, Timer, Trophy, X } from 'lucide-react'
+import QuestionBlock, { LookupText } from './QuestionBlock'
+import {
+  FULL_TEST_MINUTES,
+  GROUP_BY_ID,
+  READING_HISTORY_KEY,
+  READING_TAGS_KEY,
+  READING_TESTS,
+  READING_WRONG_KEY,
+  SECTIONS,
+  TAGS,
+  estimateScore,
+  fillBlanks,
+  testOfGroup,
+} from '../data/reading'
+import type { ReadingGroup, ReadingQuestion, ReadingRecord, ReadingTest, SectionId, TagStats } from '../data/reading'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { toDateKey } from '../utils/date'
 
-type Scope = SectionId | 'full'
+type Scope = ReadingRecord['scope']
 
 /** 作答中的進度；存在 localStorage，App 被關掉再打開可以接著寫 */
 interface Session {
   testId: string
   scope: Scope
+  /** 這次要寫的題組（舊版存的進度沒有這個欄位，改由 testId + scope 推算） */
+  groupIds?: string[]
   index: number
   /** 題目 id → 選的選項 */
   answers: Record<string, number>
@@ -19,15 +34,32 @@ interface Session {
   elapsed: number
 }
 
-const LETTERS = ['A', 'B', 'C', 'D']
+const DAILY_COUNT = 10
 
 const groupsOf = (test: ReadingTest, scope: Scope) => (scope === 'full' ? test.groups : test.groups.filter(g => g.section === scope))
+const sessionGroups = (session: Session): ReadingGroup[] => {
+  if (session.groupIds) return session.groupIds.map(id => GROUP_BY_ID.get(id)).filter(g => g !== undefined)
+  const test = READING_TESTS.find(t => t.id === session.testId)
+  return test ? groupsOf(test, session.scope) : []
+}
 const scopeLabel = (scope: Scope) => {
   if (scope === 'full') return '完整模擬考'
+  if (scope === 'daily') return `每日 ${DAILY_COUNT} 題`
+  if (scope === 'wrong') return '錯題本'
   const s = SECTIONS.find(x => x.id === scope)
   return s ? `${s.part} ${s.label}` : ''
 }
+const sectionLabel = (section: SectionId) => scopeLabel(section)
 const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+
+function shuffled<T>(items: T[]): T[] {
+  const a = [...items]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
 
 function Docs({ group }: { group: ReadingGroup }) {
   return (
@@ -36,63 +68,11 @@ function Docs({ group }: { group: ReadingGroup }) {
         <div key={i} className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
           <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary-ink">{doc.label}</span>
           <p className="mt-3 text-[15px] leading-relaxed whitespace-pre-line text-fg">
-            {group.section === 'p6' ? fillBlanks(doc.text, group) : doc.text}
+            <LookupText text={group.section === 'p6' ? fillBlanks(doc.text, group) : doc.text} />
           </p>
         </div>
       ))}
     </>
-  )
-}
-
-function QuestionBlock({
-  question,
-  picked,
-  reveal,
-  onPick,
-}: {
-  question: ReadingQuestion
-  picked: number | undefined
-  reveal: boolean
-  onPick?: (option: number) => void
-}) {
-  const optionClass = (i: number) => {
-    if (reveal) {
-      if (i === question.answer) return 'bg-emerald-500 text-white'
-      if (i === picked) return 'bg-rose-500 text-white'
-      return 'bg-surface text-faint ring-1 ring-line'
-    }
-    return i === picked ? 'bg-primary-soft text-primary-ink ring-2 ring-primary' : 'bg-surface text-fg ring-1 ring-line active:scale-[0.99]'
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="leading-relaxed font-medium whitespace-pre-line text-fg">
-        <span className="mr-1.5 text-primary-ink tabular-nums">{question.number}.</span>
-        {question.text || <span className="text-muted">選出最適合填入空格的答案</span>}
-      </p>
-      <div className="grid gap-2">
-        {question.options.map((opt, i) => (
-          <button
-            key={i}
-            disabled={reveal || !onPick}
-            onClick={() => onPick?.(i)}
-            className={`flex gap-2.5 rounded-xl px-3.5 py-3 text-left text-[15px] transition ${optionClass(i)}`}
-          >
-            <span className="font-semibold">({LETTERS[i]})</span>
-            <span className="flex-1">{opt}</span>
-          </button>
-        ))}
-      </div>
-      {reveal && (
-        <div className="rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm text-muted">
-          <p className={`flex items-center gap-1 font-semibold ${picked === question.answer ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {picked === question.answer ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-            {picked === question.answer ? '答對了' : picked === undefined ? `未作答，答案是 (${LETTERS[question.answer]})` : `答案是 (${LETTERS[question.answer]})`}
-          </p>
-          <p className="mt-1">{question.explanation}</p>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -116,38 +96,98 @@ function ReviewGroup({ group, answers }: { group: ReadingGroup; answers: Record<
   )
 }
 
+/** 各考點的答對率，由低到高排，最弱的排最前面 */
+function Weakness({ stats }: { stats: TagStats }) {
+  const rows = Object.entries(stats)
+    .filter(([tag, s]) => TAGS[tag] && s.total >= 3)
+    .map(([tag, s]) => ({ tag, ...s, pct: Math.round((s.right / s.total) * 100) }))
+    .sort((a, b) => a.pct - b.pct)
+  if (rows.length === 0) return null
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-sm">
+      <p className="font-semibold text-fg">弱點分析</p>
+      <p className="mb-3 text-xs text-faint">依考點統計答對率，越上面越需要加強</p>
+      <div className="space-y-2.5">
+        {rows.map(r => (
+          <div key={r.tag}>
+            <div className="flex justify-between text-sm">
+              <span className="text-fg">{TAGS[r.tag]}</span>
+              <span className="text-muted tabular-nums">
+                {r.pct}%<span className="ml-1 text-xs text-faint">({r.right}/{r.total})</span>
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className={`h-full rounded-full ${r.pct < 60 ? 'bg-rose-500' : r.pct < 80 ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                style={{ width: `${r.pct}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Reading() {
   const [testId, setTestId] = useState(READING_TESTS[0].id)
   const [session, setSession] = useLocalStorage<Session | null>('lifemaster.readingSession', null)
   const [history, setHistory] = useLocalStorage<ReadingRecord[]>(READING_HISTORY_KEY, [])
+  const [tagStats, setTagStats] = useLocalStorage<TagStats>(READING_TAGS_KEY, {})
+  const [wrongIds, setWrongIds] = useLocalStorage<string[]>(READING_WRONG_KEY, [])
   const [result, setResult] = useState<Session | null>(null)
 
   const active = session ?? result
-  const test = READING_TESTS.find(t => t.id === (active?.testId ?? testId)) ?? READING_TESTS[0]
-  const groups = active ? groupsOf(test, active.scope) : []
+  const test = READING_TESTS.find(t => t.id === testId) ?? READING_TESTS[0]
+  const groups = active ? sessionGroups(active) : []
   const isFull = session?.scope === 'full'
   const remaining = FULL_TEST_MINUTES * 60 - (session?.elapsed ?? 0)
   const running = session !== null
 
-  const start = (scope: Scope) => {
+  const begin = (scope: Scope, groupIds: string[]) => {
+    if (groupIds.length === 0) return
     setResult(null)
-    setSession({ testId: test.id, scope, index: 0, answers: {}, checked: [], elapsed: 0 })
+    setSession({ testId: scope === 'daily' || scope === 'wrong' ? 'mix' : test.id, scope, groupIds, index: 0, answers: {}, checked: [], elapsed: 0 })
     window.scrollTo({ top: 0 })
+  }
+
+  const wrongGroupIds = () => [...new Set(wrongIds.map(id => id.slice(0, id.lastIndexOf('-'))))].filter(id => GROUP_BY_ID.has(id))
+
+  const start = (scope: Scope) => {
+    if (scope === 'wrong') return begin(scope, wrongGroupIds())
+    if (scope === 'daily') {
+      // 每日 10 題：Part 5 為主，錯過的題目優先
+      const wrong = new Set(wrongIds)
+      const pool = READING_TESTS.flatMap(t => t.groups.filter(g => g.section === 'p5'))
+      const first = shuffled(pool.filter(g => wrong.has(g.questions[0].id)))
+      const rest = shuffled(pool.filter(g => !wrong.has(g.questions[0].id)))
+      return begin(scope, [...first, ...rest].slice(0, DAILY_COUNT).map(g => g.id))
+    }
+    begin(scope, groupsOf(test, scope).map(g => g.id))
   }
 
   const finish = () => {
     if (!session) return
     const questions = groups.flatMap(g => g.questions)
-    const correct = questions.filter(q => session.answers[q.id] === q.answer).length
-    const record: ReadingRecord = {
-      date: toDateKey(),
-      testId: session.testId,
-      scope: session.scope,
-      correct,
-      total: questions.length,
-      seconds: session.elapsed,
-    }
-    setHistory(prev => [...prev, record].slice(-200))
+    const isRight = (q: ReadingQuestion) => session.answers[q.id] === q.answer
+    const correct = questions.filter(isRight).length
+    setHistory(prev =>
+      [...prev, { date: toDateKey(), testId: session.testId, scope: session.scope, correct, total: questions.length, seconds: session.elapsed }].slice(-200),
+    )
+    setTagStats(prev => {
+      const next = { ...prev }
+      for (const q of questions) {
+        const s = next[q.tag] ?? { right: 0, total: 0 }
+        next[q.tag] = { right: s.right + (isRight(q) ? 1 : 0), total: s.total + 1 }
+      }
+      return next
+    })
+    // 錯題本：答錯的加入，答對的移除
+    setWrongIds(prev => {
+      const right = new Set(questions.filter(isRight).map(q => q.id))
+      const wrong = questions.filter(q => !isRight(q)).map(q => q.id)
+      return [...new Set([...prev.filter(id => !right.has(id)), ...wrong])]
+    })
     setResult(session)
     setSession(null)
     window.scrollTo({ top: 0 })
@@ -170,7 +210,14 @@ export default function Reading() {
   // ---------- 作答 ----------
   if (session) {
     const group = groups[Math.min(session.index, groups.length - 1)]
-    if (!group) return null
+    if (!group) {
+      // 題庫改版後找不到原本的題組，直接放棄這次進度
+      return (
+        <button onClick={() => setSession(null)} className="w-full rounded-2xl bg-surface py-4 text-sm text-muted shadow-sm">
+          找不到上次的作答進度，點此回到選單
+        </button>
+      )
+    }
     const last = session.index >= groups.length - 1
     const checked = session.checked.includes(group.id)
     const allPicked = group.questions.every(q => session.answers[q.id] !== undefined)
@@ -216,8 +263,9 @@ export default function Reading() {
         </div>
 
         <p className="text-xs text-faint">
-          {test.name}・{scopeLabel(group.section)}
+          {testOfGroup(group.id)?.name}・{sectionLabel(group.section)}
           {group.questions.length > 1 && `・第 ${group.questions[0].number}–${group.questions[group.questions.length - 1].number} 題`}
+          {group.docs.length > 0 && '・點虛線單字可查解釋'}
         </p>
 
         <Docs group={group} />
@@ -285,13 +333,15 @@ export default function Reading() {
       const qs = groups.filter(g => g.section === s.id).flatMap(g => g.questions)
       return { ...s, total: qs.length, correct: qs.filter(q => result.answers[q.id] === q.answer).length }
     }).filter(s => s.total > 0)
+    const resultTest = READING_TESTS.find(t => t.id === result.testId)
 
     return (
       <div className="space-y-4">
         <div className="rounded-2xl bg-surface p-6 text-center shadow-sm">
           <Trophy className={`mx-auto h-12 w-12 ${pct >= 80 ? 'text-amber-500' : 'text-faint'}`} />
           <p className="mt-2 text-sm text-muted">
-            {test.name}・{scopeLabel(result.scope)}
+            {resultTest && `${resultTest.name}・`}
+            {scopeLabel(result.scope)}
           </p>
           <p className="text-5xl font-bold text-primary-ink">
             {correct}
@@ -331,9 +381,10 @@ export default function Reading() {
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => start(result.scope)}
-            className="flex items-center justify-center gap-1.5 rounded-2xl bg-surface py-3 font-medium text-fg shadow-sm transition active:scale-[0.98]"
+            disabled={result.scope === 'wrong' && wrongIds.length === 0}
+            className="flex items-center justify-center gap-1.5 rounded-2xl bg-surface py-3 font-medium text-fg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
           >
-            <RotateCcw className="h-4 w-4" /> 再寫一次
+            <RotateCcw className="h-4 w-4" /> {result.scope === 'daily' ? '再來 10 題' : result.scope === 'wrong' ? '再練錯題' : '再寫一次'}
           </button>
           <button
             onClick={() => setResult(null)}
@@ -345,7 +396,7 @@ export default function Reading() {
 
         {wrongGroups.length > 0 && (
           <>
-            <p className="px-1 text-sm font-semibold text-fg">錯題解析（{questions.length - correct} 題）</p>
+            <p className="px-1 text-sm font-semibold text-fg">錯題解析（{questions.length - correct} 題，已收進錯題本）</p>
             {wrongGroups.map(g => (
               <ReviewGroup key={g.id} group={g} answers={result.answers} />
             ))}
@@ -361,9 +412,28 @@ export default function Reading() {
     return records.length ? records.reduce((a, b) => (b.correct > a.correct ? b : a)) : null
   }
   const fullBest = bestOf('full')
+  const dailyToday = history.filter(r => r.scope === 'daily' && r.date === toDateKey()).length
+  const wrongCount = wrongIds.filter(id => GROUP_BY_ID.has(id.slice(0, id.lastIndexOf('-')))).length
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => start('daily')} className="rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]">
+          <Sparkles className="h-5 w-5 text-primary-ink" />
+          <p className="mt-1.5 font-semibold text-fg">每日 {DAILY_COUNT} 題</p>
+          <p className="text-xs text-muted">{dailyToday > 0 ? `今天已完成 ${dailyToday} 回` : '文法單字快速練習'}</p>
+        </button>
+        <button
+          onClick={() => start('wrong')}
+          disabled={wrongCount === 0}
+          className="rounded-2xl bg-surface p-4 text-left shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+        >
+          <BookX className="h-5 w-5 text-rose-500" />
+          <p className="mt-1.5 font-semibold text-fg">錯題本</p>
+          <p className="text-xs text-muted">{wrongCount > 0 ? `${wrongCount} 題待複習` : '目前沒有錯題'}</p>
+        </button>
+      </div>
+
       <div className="flex gap-2">
         {READING_TESTS.map(t => (
           <button
@@ -426,6 +496,8 @@ export default function Reading() {
           })}
         </ul>
       </div>
+
+      <Weakness stats={tagStats} />
     </div>
   )
 }
