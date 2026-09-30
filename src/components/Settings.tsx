@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Trash2, Upload, Volume2, X } from 'lucide-react'
 import { HABIT_COLORS, HABIT_ICONS, VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
@@ -9,6 +9,8 @@ import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import type { AutoSpeak } from '../hooks/useSpeechSettings'
+import { cloudEnabled } from '../utils/cloud'
+import { PUSH_EVENT, isPushEnabled } from '../utils/push'
 import { notificationPermission, requestNotificationPermission, showNotification } from '../utils/reminders'
 import { speak } from '../utils/speech'
 import type { Accent } from '../utils/speech'
@@ -343,6 +345,13 @@ function SpeechSettingsPanel() {
 function NotificationPanel() {
   const [permission, setPermission] = useState(notificationPermission())
   const [tested, setTested] = useState<boolean | null>(null)
+  const [pushOn, setPushOn] = useState(isPushEnabled)
+
+  useEffect(() => {
+    const onChange = () => setPushOn(isPushEnabled())
+    window.addEventListener(PUSH_EVENT, onChange)
+    return () => window.removeEventListener(PUSH_EVENT, onChange)
+  }, [])
 
   const status = {
     granted: '✅ 已開啟',
@@ -354,6 +363,15 @@ function NotificationPanel() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">狀態：{status}</p>
+      {permission === 'granted' && (
+        <p className={`text-xs ${pushOn ? 'text-emerald-500' : 'text-faint'}`}>
+          {pushOn
+            ? '背景推播已啟用：App 關著也會準時提醒'
+            : cloudEnabled
+              ? '背景推播尚未啟用，目前只有 App 開著時會提醒（請確認是從主畫面開啟且有網路）'
+              : '尚未設定雲端服務，目前只有 App 開著時會提醒'}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <button
           disabled={permission !== 'default'}
@@ -388,7 +406,7 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         <SpeechSettingsPanel />
       </Section>
 
-      <Section title="🔔 待辦通知" desc="App 開著或切回來時會提醒；要在 App 關閉時也準時提醒，請在任務裡用「加到 iPhone 行事曆」">
+      <Section title="🔔 待辦通知" desc="開啟後 App 關著也會收到待辦提醒與夥伴的督促；也可以在任務裡用「加到 iPhone 行事曆」">
         <NotificationPanel />
       </Section>
 

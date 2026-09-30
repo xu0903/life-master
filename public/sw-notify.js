@@ -9,3 +9,20 @@ self.addEventListener('notificationclick', event => {
     }),
   )
 })
+
+// 雲端推播：App 沒開時也能跳出待辦提醒與夥伴督促
+self.addEventListener('push', event => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { body: event.data ? event.data.text() : '' }
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'LifeMaster', {
+      body: data.body || '',
+      tag: data.tag,
+      icon: 'pwa-192x192.png',
+    }),
+  )
+})

@@ -1,5 +1,6 @@
 import { PRIORITIES, dueStart, reminderAt } from '../data/todos'
 import type { Todo } from '../data/todos'
+import { enablePush } from './push'
 
 export const canNotify = typeof window !== 'undefined' && 'Notification' in window
 
@@ -10,7 +11,10 @@ export function notificationPermission(): NotificationPermission | 'unsupported'
 /** 必須在點擊事件內呼叫，iPhone 才會跳出權限詢問 */
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
   if (!canNotify) return 'unsupported'
-  return Notification.requestPermission()
+  const permission = await Notification.requestPermission()
+  // 同意後順便登記雲端推播，App 關著也收得到
+  if (permission === 'granted') await enablePush()
+  return permission
 }
 
 /** 優先透過 service worker 發通知（iPhone 主畫面 App 必須這樣做），不行再用一般 Notification */

@@ -35,10 +35,9 @@ export function GradeButtons({ onGrade }: { onGrade: (grade: Grade) => void }) {
         <button
           key={g.grade}
           onClick={() => onGrade(g.grade)}
-          className={`flex flex-col items-center gap-0.5 rounded-2xl py-3 font-semibold shadow-md transition active:scale-95 ${g.button}`}
+          className={`rounded-2xl py-3.5 text-sm font-semibold shadow-md transition active:scale-95 ${g.button}`}
         >
-          <span className="text-xl leading-none">{g.emoji}</span>
-          <span className="text-sm">{g.label}</span>
+          {g.label}
         </button>
       ))}
     </div>
