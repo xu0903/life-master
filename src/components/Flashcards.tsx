@@ -5,6 +5,7 @@ import CardActions from './CardActions'
 import FlipCard from './FlipCard'
 import { GradeButtons, MasteryBar } from './Mastery'
 import Practice from './Practice'
+import Reading from './Reading'
 import type { Card } from '../data/flashcards'
 import { MAX_BOX, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
 import type { Grade } from '../data/toeicWords'
@@ -34,7 +35,14 @@ export default function Flashcards() {
     useDecks()
   const [stats, setStats] = useWordStats()
   const today = toDateKey()
-  const [mode, setMode] = useState<'flip' | 'practice'>('flip')
+  // 閱讀測驗寫到一半離開的話，回來直接接著寫
+  const [mode, setMode] = useState<'flip' | 'practice' | 'reading'>(() => {
+    try {
+      return (localStorage.getItem('lifemaster.readingSession') ?? 'null') !== 'null' ? 'reading' : 'flip'
+    } catch {
+      return 'flip'
+    }
+  })
   const [filter, setFilter] = useState<Filter>('all')
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [flipped, setFlipped] = useState(false)
@@ -138,8 +146,9 @@ export default function Flashcards() {
     <div className="flex rounded-2xl bg-surface p-1 shadow-sm">
       {(
         [
-          ['flip', '🃏 翻卡學習'],
-          ['practice', '✍️ 刷題模式'],
+          ['flip', '🃏 翻卡'],
+          ['practice', '✍️ 刷題'],
+          ['reading', '📄 閱讀測驗'],
         ] as const
       ).map(([m, label]) => (
         <button
@@ -154,6 +163,15 @@ export default function Flashcards() {
       ))}
     </div>
   )
+
+  if (mode === 'reading') {
+    return (
+      <div className="space-y-4">
+        {modeSwitch}
+        <Reading />
+      </div>
+    )
+  }
 
   if (mode === 'practice') {
     return (

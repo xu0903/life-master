@@ -1,21 +1,24 @@
 import { useState } from 'react'
-import { BarChart3, BookOpenCheck, Flame, ListTodo, Settings as SettingsIcon } from 'lucide-react'
+import { BarChart3, BookOpenCheck, Flame, ListTodo, Settings as SettingsIcon, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Habits from './components/Habits'
 import Todos from './components/Todos'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
 import ReminderBanner from './components/ReminderBanner'
+import Rooms from './components/Rooms'
 import Settings from './components/Settings'
 import WordPopupProvider from './components/WordPopup'
+import { useProgressSync } from './hooks/useProgress'
 import { useTheme } from './themes'
 
-type TabId = 'habits' | 'todos' | 'flashcards' | 'stats' | 'settings'
+type TabId = 'habits' | 'todos' | 'flashcards' | 'rooms' | 'stats' | 'settings'
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: 'habits', label: '習慣打卡', Icon: Flame },
   { id: 'todos', label: '待辦清單', Icon: ListTodo },
   { id: 'flashcards', label: '單字卡', Icon: BookOpenCheck },
+  { id: 'rooms', label: '夥伴', Icon: Users },
   { id: 'stats', label: '統計', Icon: BarChart3 },
   { id: 'settings', label: '設定', Icon: SettingsIcon },
 ]
@@ -23,6 +26,7 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
 export default function App() {
   const [tab, setTab] = useState<TabId>('habits')
   const { themeId, setThemeId } = useTheme()
+  useProgressSync()
   const activeLabel = TABS.find(t => t.id === tab)?.label
 
   const today = new Date().toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' })
@@ -46,6 +50,7 @@ export default function App() {
           {tab === 'habits' && <Habits onManage={() => goTo('settings')} />}
           {tab === 'todos' && <Todos />}
           {tab === 'flashcards' && <Flashcards />}
+          {tab === 'rooms' && <Rooms onOpenSettings={() => goTo('settings')} />}
           {tab === 'stats' && <Stats />}
           {tab === 'settings' && <Settings themeId={themeId} onThemeChange={setThemeId} />}
         </main>

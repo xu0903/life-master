@@ -431,7 +431,7 @@ Owen Hart`,
       qs: [
         { q: 'What is NOT mentioned as a duty of the Front Desk Supervisor?', o: ['Managing the hotel\'s budget', 'Making work schedules', 'Dealing with complaints', 'Training employees'], ex: '職責列了排班、處理客訴、訓練新櫃台人員，沒有提到管理預算。' },
         { q: 'What benefit is mentioned in the advertisement?', o: ['Reduced rates at other hotels', 'Free accommodation for staff', 'Extra pay for holiday work', 'Paid language courses'], ex: 'discounted stays at our partner hotels = 合作飯店住宿優惠。' },
-        { q: 'In the e-mail, the word "role" in paragraph 1, line 3, is closest in meaning to', o: ['position', 'character', 'performance', 'rule'], ex: '這裡的 role 指他擔任 shift leader 這個「職位」。' },
+        { q: 'In the e-mail, the word "role" in paragraph 1 is closest in meaning to', o: ['position', 'character', 'performance', 'rule'], ex: '這裡的 role 指他擔任 shift leader 這個「職位」。' },
         { q: 'Which of Mr. Hart\'s qualifications is described in the advertisement as an advantage rather than a requirement?', o: ['His ability to speak Spanish', 'His five years at a hotel reception desk', 'His experience creating schedules', 'His willingness to work weekends'], ex: '廣告寫 Knowledge of a second language is an advantage；Hart 在信中說他西班牙文流利。' },
         { q: 'Why might Mr. Hart be unable to attend an interview in person at the planned time?', o: ['He will be traveling overseas.', 'He works on weekends.', 'He lives far from Queenstown.', 'He has another interview.'], ex: '面試在十月第二週，而他 10/8–12 在國外參加研討會。' },
       ],
