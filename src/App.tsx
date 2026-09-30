@@ -24,8 +24,16 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: 'settings', label: '設定', Icon: SettingsIcon },
 ]
 
+/** 邀請連結 ?join=XXXXXX 帶來的邀請碼；讀完就從網址列拿掉 */
+function readJoinCode(): string {
+  const code = new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) ?? ''
+  if (code) history.replaceState(null, '', location.pathname)
+  return code
+}
+
 export default function App() {
-  const [tab, setTab] = useState<TabId>('habits')
+  const [joinCode] = useState(readJoinCode)
+  const [tab, setTab] = useState<TabId>(joinCode ? 'rooms' : 'habits')
   const { themeId, setThemeId } = useTheme()
   useProgressSync()
   useCloudBackup()
@@ -52,7 +60,7 @@ export default function App() {
           {tab === 'habits' && <Habits onManage={() => goTo('settings')} />}
           {tab === 'todos' && <Todos />}
           {tab === 'flashcards' && <Flashcards />}
-          {tab === 'rooms' && <Rooms onOpenSettings={() => goTo('settings')} />}
+          {tab === 'rooms' && <Rooms onOpenSettings={() => goTo('settings')} joinCode={joinCode} />}
           {tab === 'stats' && <Stats />}
           {tab === 'settings' && <Settings themeId={themeId} onThemeChange={setThemeId} />}
         </main>

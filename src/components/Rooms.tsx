@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { BellRing, Check, Copy, Crown, Flame, Heart, LogOut, Pencil, Plus, Share2, Trophy, UserMinus, X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { useProgress } from '../hooks/useProgress'
+import { NIGHTLY_REMIND_KEY, useProgress } from '../hooks/useProgress'
 import { cloudEnabled } from '../utils/cloud'
 import { toDateKey, weekKeys } from '../utils/date'
 import { PUSH_EVENT, isPushEnabled } from '../utils/push'
@@ -42,11 +42,21 @@ function Stat({ label, value, done }: { label: string; value: string; done: bool
   )
 }
 
+/** 從整段邀請訊息或連結裡找出 6 碼邀請碼，方便直接貼上 */
+function extractCode(input: string): string {
+  const text = input.toUpperCase()
+  const match = text.match(/JOIN=([A-Z0-9]{6})/) ?? text.match(/邀請碼\s*([A-Z0-9]{6})/)
+  return (match ? match[1] : text.replace(/[^A-Z0-9]/g, '')).slice(0, 6)
+}
+
+const isStandalone = () =>
+  window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
+
 /** 建立或加入房間的表單 */
-function JoinForm({ onDone }: { onDone: () => void }) {
+function JoinForm({ onDone, initialCode = '' }: { onDone: () => void; initialCode?: string }) {
   const [nickname, setNickname] = useLocalStorage('lifemaster.nickname', '')
   const [mode, setMode] = useState<'join' | 'create'>('join')
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(initialCode)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -90,12 +100,11 @@ function JoinForm({ onDone }: { onDone: () => void }) {
       {mode === 'join' ? (
         <input
           value={value}
-          onChange={e => setValue(e.target.value.toUpperCase())}
-          maxLength={6}
+          onChange={e => setValue(extractCode(e.target.value))}
           autoCapitalize="characters"
           autoCorrect="off"
-          placeholder="6 碼邀請碼"
-          className={`${inputClass} text-center font-mono tracking-[0.3em]`}
+          placeholder="6 碼邀請碼（可直接貼上邀請訊息）"
+          className={`${inputClass} text-center font-mono ${value ? 'tracking-[0.3em]' : ''}`}
         />
       ) : (
         <input value={value} onChange={e => setValue(e.target.value)} maxLength={30} placeholder="房間名稱，例如：多益衝刺班" className={inputClass} />
@@ -224,8 +233,34 @@ function MemberRow({
   )
 }
 
-export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }) {
+/** 用邀請連結打開、但不是從主畫面 App 開的：提醒兩邊資料是分開的 */
+function BrowserHint({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+  if (isStandalone()) return null
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+    } catch {
+      // 無法存取剪貼簿時忽略
+    }
+  }
+  return (
+    <div className="rounded-2xl bg-amber-400/20 p-4 text-sm text-amber-700 dark:text-amber-300">
+      <p>
+        已經把 LifeMaster 加到主畫面了嗎？主畫面的 App 和瀏覽器的資料是分開的，請複製邀請碼，再打開主畫面的 App →「夥伴」貼上。
+      </p>
+      <button onClick={copy} className="mt-2 flex items-center gap-1.5 rounded-full bg-amber-400 px-3.5 py-1.5 font-semibold text-amber-950">
+        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? '已複製' : `複製邀請碼 ${code}`}
+      </button>
+    </div>
+  )
+}
+
+export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSettings: () => void; joinCode?: string }) {
   const progress = useProgress()
+  const [remind, setRemind] = useLocalStorage(NIGHTLY_REMIND_KEY, false)
+  const [pendingCode, setPendingCode] = useState(joinCode)
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading')
   const [userId, setUserId] = useState('')
   const [rooms, setRooms] = useState<Room[]>([])
@@ -290,6 +325,31 @@ export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }
   }
 
   const room = rooms.find(r => r.id === roomId) ?? rooms[0]
+  // 邀請連結帶來的邀請碼：已經在那個房間裡就不用再問
+  const invite = pendingCode && !rooms.some(r => r.code === pendingCode) ? pendingCode : ''
+
+  if (invite && room) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-surface p-5 text-center shadow-sm">
+          <p className="font-semibold text-fg">你收到一個房間邀請</p>
+          <p className="mt-1 text-sm text-muted">確認暱稱後按加入</p>
+        </div>
+        <BrowserHint code={invite} />
+        <JoinForm
+          initialCode={invite}
+          onDone={() => {
+            setPendingCode('')
+            setRoomId(null)
+            void load()
+          }}
+        />
+        <button onClick={() => setPendingCode('')} className="w-full py-1 text-center text-sm text-faint underline">
+          先不加入
+        </button>
+      </div>
+    )
+  }
 
   if (!room) {
     return (
@@ -298,12 +358,19 @@ export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }
           <p className="font-semibold text-fg">找夥伴一起打卡</p>
           <p className="mt-1 text-sm text-muted">建立房間後把邀請碼傳給朋友，就能看到彼此今天的進度，還可以互相督促。</p>
         </div>
-        <JoinForm onDone={() => void load()} />
+        {invite && <BrowserHint code={invite} />}
+        <JoinForm
+          initialCode={invite}
+          onDone={() => {
+            setPendingCode('')
+            void load()
+          }}
+        />
       </div>
     )
   }
 
-  const inviteText = `來 LifeMaster 跟我一起打卡！到「夥伴」分頁輸入邀請碼 ${room.code} 加入「${room.name}」\n${location.origin}${import.meta.env.BASE_URL}`
+  const inviteText = `來 LifeMaster 跟我一起打卡！點連結加入「${room.name}」，或到「夥伴」分頁輸入邀請碼 ${room.code}\n${location.origin}${import.meta.env.BASE_URL}?join=${room.code}`
 
   const share = async () => {
     try {
@@ -443,6 +510,14 @@ export default function Rooms({ onOpenSettings }: { onOpenSettings: () => void }
             </ul>
           </div>
           {room.members.length === 1 && <p className="text-center text-sm text-faint">房間裡還只有你，把邀請碼傳給朋友吧</p>}
+
+          <label className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-sm">
+            <span>
+              <span className="block text-sm font-medium text-fg">每晚 9 點提醒我打卡</span>
+              <span className="block text-xs text-muted">當天習慣還沒全部完成時才會通知</span>
+            </span>
+            <input type="checkbox" checked={remind} onChange={e => setRemind(e.target.checked)} className="h-5 w-5 accent-primary" />
+          </label>
 
           <button onClick={leave} className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-faint">
             <LogOut className="h-4 w-4" /> {room.owner === userId ? '解散房間' : '離開房間'}

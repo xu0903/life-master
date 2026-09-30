@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookX, ChevronDown, Clock, FileText, RotateCcw, Sparkles, Timer, Trophy, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpenText, BookX, ChevronDown, Clock, FileText, RotateCcw, Sparkles, Timer, Trophy, X } from 'lucide-react'
 import QuestionBlock, { LookupText } from './QuestionBlock'
 import {
   FULL_TEST_MINUTES,
@@ -35,6 +35,8 @@ interface Session {
 }
 
 const DAILY_COUNT = 10
+const QUICK_PASSAGES = 2
+const MIXED: Scope[] = ['daily', 'quick', 'wrong']
 
 const groupsOf = (test: ReadingTest, scope: Scope) => (scope === 'full' ? test.groups : test.groups.filter(g => g.section === scope))
 const sessionGroups = (session: Session): ReadingGroup[] => {
@@ -45,6 +47,7 @@ const sessionGroups = (session: Session): ReadingGroup[] => {
 const scopeLabel = (scope: Scope) => {
   if (scope === 'full') return '完整模擬考'
   if (scope === 'daily') return `每日 ${DAILY_COUNT} 題`
+  if (scope === 'quick') return `閱讀 ${QUICK_PASSAGES} 篇`
   if (scope === 'wrong') return '錯題本'
   const s = SECTIONS.find(x => x.id === scope)
   return s ? `${s.part} ${s.label}` : ''
@@ -147,7 +150,7 @@ export default function Reading() {
   const begin = (scope: Scope, groupIds: string[]) => {
     if (groupIds.length === 0) return
     setResult(null)
-    setSession({ testId: scope === 'daily' || scope === 'wrong' ? 'mix' : test.id, scope, groupIds, index: 0, answers: {}, checked: [], elapsed: 0 })
+    setSession({ testId: MIXED.includes(scope) ? 'mix' : test.id, scope, groupIds, index: 0, answers: {}, checked: [], elapsed: 0 })
     window.scrollTo({ top: 0 })
   }
 
@@ -162,6 +165,11 @@ export default function Reading() {
       const first = shuffled(pool.filter(g => wrong.has(g.questions[0].id)))
       const rest = shuffled(pool.filter(g => !wrong.has(g.questions[0].id)))
       return begin(scope, [...first, ...rest].slice(0, DAILY_COUNT).map(g => g.id))
+    }
+    if (scope === 'quick') {
+      // 長篇閱讀先練兩篇：從所有單篇閱讀裡隨機抽
+      const pool = READING_TESTS.flatMap(t => t.groups.filter(g => g.section === 'p7s'))
+      return begin(scope, shuffled(pool).slice(0, QUICK_PASSAGES).map(g => g.id))
     }
     begin(scope, groupsOf(test, scope).map(g => g.id))
   }
@@ -256,7 +264,10 @@ export default function Reading() {
               <Timer className="h-4 w-4" /> {formatTime(Math.max(0, remaining))}
             </span>
           ) : (
-            <span className="text-sm font-medium text-muted tabular-nums">
+            <span className="flex items-center gap-2 text-sm font-medium text-muted tabular-nums">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> {formatTime(session.elapsed)}
+              </span>
               {answeredCount}/{totalCount}
             </span>
           )}
@@ -384,7 +395,7 @@ export default function Reading() {
             disabled={result.scope === 'wrong' && wrongIds.length === 0}
             className="flex items-center justify-center gap-1.5 rounded-2xl bg-surface py-3 font-medium text-fg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
           >
-            <RotateCcw className="h-4 w-4" /> {result.scope === 'daily' ? '再來 10 題' : result.scope === 'wrong' ? '再練錯題' : '再寫一次'}
+            <RotateCcw className="h-4 w-4" /> {result.scope === 'daily' ? '再來 10 題' : result.scope === 'quick' ? '再來 2 篇' : result.scope === 'wrong' ? '再練錯題' : '再寫一次'}
           </button>
           <button
             onClick={() => setResult(null)}
@@ -413,26 +424,33 @@ export default function Reading() {
   }
   const fullBest = bestOf('full')
   const dailyToday = history.filter(r => r.scope === 'daily' && r.date === toDateKey()).length
+  const quickToday = history.filter(r => r.scope === 'quick' && r.date === toDateKey()).length
   const wrongCount = wrongIds.filter(id => GROUP_BY_ID.has(id.slice(0, id.lastIndexOf('-')))).length
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => start('daily')} className="rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]">
+      <div className="grid grid-cols-3 gap-2.5">
+        <button onClick={() => start('daily')} className="rounded-2xl bg-surface p-3 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]">
           <Sparkles className="h-5 w-5 text-primary-ink" />
-          <p className="mt-1.5 font-semibold text-fg">每日 {DAILY_COUNT} 題</p>
-          <p className="text-xs text-muted">{dailyToday > 0 ? `今天已完成 ${dailyToday} 回` : '文法單字快速練習'}</p>
+          <p className="mt-1.5 text-sm font-semibold text-fg">刷 {DAILY_COUNT} 題</p>
+          <p className="text-xs text-muted">{dailyToday > 0 ? `今天 ${dailyToday} 回` : '文法單字'}</p>
+        </button>
+        <button onClick={() => start('quick')} className="rounded-2xl bg-surface p-3 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]">
+          <BookOpenText className="h-5 w-5 text-primary-ink" />
+          <p className="mt-1.5 text-sm font-semibold text-fg">閱讀 {QUICK_PASSAGES} 篇</p>
+          <p className="text-xs text-muted">{quickToday > 0 ? `今天 ${quickToday} 回` : '長篇先練兩篇'}</p>
         </button>
         <button
           onClick={() => start('wrong')}
           disabled={wrongCount === 0}
-          className="rounded-2xl bg-surface p-4 text-left shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+          className="rounded-2xl bg-surface p-3 text-left shadow-sm transition active:scale-[0.98] disabled:opacity-50"
         >
           <BookX className="h-5 w-5 text-rose-500" />
-          <p className="mt-1.5 font-semibold text-fg">錯題本</p>
-          <p className="text-xs text-muted">{wrongCount > 0 ? `${wrongCount} 題待複習` : '目前沒有錯題'}</p>
+          <p className="mt-1.5 text-sm font-semibold text-fg">錯題本</p>
+          <p className="text-xs text-muted">{wrongCount > 0 ? `${wrongCount} 題待複習` : '沒有錯題'}</p>
         </button>
       </div>
+      <p className="-mt-2 px-1 text-xs text-faint">以上練習都會用碼表計時，成績頁會顯示花了多久</p>
 
       <div className="flex gap-2">
         {READING_TESTS.map(t => (

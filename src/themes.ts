@@ -21,6 +21,9 @@ export const THEMES: Theme[] = [
   { id: 'forest', name: '墨綠森林', mode: 'dark', swatch: ['#08130f', '#34d399', '#14b8a6'] },
 ]
 
+/** 預設用淺色主題；要跟隨系統或用深色可以到設定裡選 */
+const DEFAULT_THEME = 'classic'
+
 /** 'auto' = 跟隨手機深淺色設定 */
 export const AUTO_THEME = { light: 'classic', dark: 'midnight' }
 
@@ -30,7 +33,14 @@ function prefersDark() {
 
 /** 讀取並套用主題到 <html data-theme data-mode>，同時更新 iPhone 狀態列顏色。 */
 export function useTheme() {
-  const [themeId, setThemeId] = useLocalStorage<string>('lifemaster.theme', 'auto')
+  const [themeId, setThemeId] = useLocalStorage<string>('lifemaster.theme', DEFAULT_THEME)
+  // 舊版預設是「跟隨系統」，手機開深色模式就會變深色；改版時統一換回淺色一次，之後尊重使用者的選擇
+  const [migrated, setMigrated] = useLocalStorage('lifemaster.themeDefaultLight', false)
+  useEffect(() => {
+    if (migrated) return
+    setMigrated(true)
+    if (themeId === 'auto') setThemeId(DEFAULT_THEME)
+  }, [migrated, themeId, setMigrated, setThemeId])
   const [systemDark, setSystemDark] = useState(prefersDark)
 
   useEffect(() => {

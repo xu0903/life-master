@@ -178,8 +178,8 @@ export type TagStats = Record<string, { right: number; total: number }>
 export interface ReadingRecord {
   date: string
   testId: string
-  /** 'full' = 完整模擬考、'daily' = 每日 10 題、'wrong' = 錯題本，其餘為單一題型 */
-  scope: SectionId | 'full' | 'daily' | 'wrong'
+  /** 'full' = 完整模擬考、'daily' = 每日 10 題、'quick' = 閱讀 2 篇、'wrong' = 錯題本，其餘為單一題型 */
+  scope: SectionId | 'full' | 'daily' | 'quick' | 'wrong'
   correct: number
   total: number
   /** 作答秒數 */

@@ -37,6 +37,7 @@ begin
 end $$;
 
 -- 每天晚上 9 點（台灣時間）提醒房間裡今天還沒完成習慣的人；一個人一天最多一則
+-- 只提醒自己在 App 裡開啟這項提醒的人（預設關閉）
 create or replace function private.remind_inactive()
 returns void language plpgsql security definer set search_path = '' as $$
 declare
@@ -48,6 +49,7 @@ begin
   from public.room_members m
   join public.rooms r on r.id = m.room_id
   where (select count(*) from public.room_members x where x.room_id = m.room_id) > 1
+    and m.progress->>'remind' = 'true'
     and (
       m.progress->>'date' is distinct from today
       or coalesce((m.progress->>'habitsDone')::int, 0) < coalesce((m.progress->>'habitsTotal')::int, 0)

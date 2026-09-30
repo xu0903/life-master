@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Bell, BellOff, CalendarClock, CalendarPlus, Check, ChevronDown, Clock, Plus, Trash2, X } from 'lucide-react'
+import Confetti from './Confetti'
 import Pomodoro from './Pomodoro'
 import { CATEGORIES, DEFAULT_REMIND, PRIORITIES, REMIND_OPTIONS, TODOS_KEY, formatDue, reminderAt } from '../data/todos'
 import type { Priority, RemindOption, Todo } from '../data/todos'
@@ -216,6 +217,9 @@ export default function Todos() {
   const [showMore, setShowMore] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [editing, setEditing] = useState<Todo | null>(null)
+  const [justDone, setJustDone] = useState<string | null>(null)
+  const [celebrate, setCelebrate] = useState(false)
+  const endCelebrate = useCallback(() => setCelebrate(false), [])
   const today = toDateKey()
 
   // 今日任務 = 今天新增的 + 尚未完成的 + 今天完成的
@@ -249,7 +253,13 @@ export default function Todos() {
   }
 
   const toggleTodo = (id: string) => {
+    const completing = !todos.find(t => t.id === id)?.done
     setTodos(prev => prev.map(t => (t.id === id ? { ...t, done: !t.done, completedDate: !t.done ? today : undefined } : t)))
+    if (!completing) return
+    setJustDone(id)
+    window.setTimeout(() => setJustDone(current => (current === id ? null : current)), 900)
+    // 這一項是最後一個未完成的任務 → 撒花慶祝
+    if (todos.every(t => t.done || t.id === id)) setCelebrate(true)
   }
 
   const updateTodo = (id: string, patch: Partial<Todo>) => setTodos(prev => prev.map(t => (t.id === id ? { ...t, ...patch } : t)))
@@ -369,12 +379,12 @@ export default function Todos() {
             const due = todo.dueDate && !todo.done ? dueLabel(todo, today) : null
             const bell = !todo.done ? remindLabel(todo) : null
             return (
-              <li key={todo.id} className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-sm">
+              <li key={todo.id} className={`flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-sm ${justDone === todo.id ? 'todo-flash' : ''}`}>
                 <button
                   onClick={() => toggleTodo(todo.id)}
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition ${
                     todo.done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line'
-                  }`}
+                  } ${justDone === todo.id ? 'todo-pop' : ''}`}
                   aria-label={todo.done ? '標記為未完成' : '標記為完成'}
                 >
                   {todo.done && <Check className="h-4 w-4" />}
@@ -404,6 +414,8 @@ export default function Todos() {
           })}
         </ul>
       )}
+
+      {celebrate && <Confetti onDone={endCelebrate} />}
 
       {editing && (
         <EditSheet
