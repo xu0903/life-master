@@ -2,8 +2,7 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/life-master/favicon.ico" sizes="48x48" />
-    <link rel="icon" type="image/svg+xml" href="/life-master/logo.svg" />
+    <link rel="icon" type="image/png" href="/life-master/pwa-192x192.png" />
     <link rel="apple-touch-icon" href="/life-master/apple-touch-icon-180x180.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f1f5f9" />
@@ -15,16 +14,25 @@
     <script>
       // 在 React 載入前先套用主題，避免開啟時閃一下預設色
       try {
-        var id = JSON.parse(localStorage.getItem('lifemaster.theme') || '"auto"')
+        var id = JSON.parse(localStorage.getItem('lifemaster.theme') || '"classic"')
         var dark = matchMedia('(prefers-color-scheme: dark)').matches
         var darkThemes = ['obsidian', 'midnight', 'forest']
         if (id === 'auto') id = dark ? 'midnight' : 'classic'
         document.documentElement.dataset.theme = id
         document.documentElement.dataset.mode = darkThemes.indexOf(id) >= 0 ? 'dark' : 'light'
       } catch (e) {}
+      // 使用者選的 App 圖示要在「加入主畫面」之前就換好
+      try {
+        var icon = JSON.parse(localStorage.getItem('lifemaster.appIcon') || '8')
+        if (icon >= 1 && icon <= 9 && icon !== 8) {
+          var base = document.querySelector('link[rel="apple-touch-icon"]').getAttribute('href').replace('apple-touch-icon-180x180.png', '')
+          document.querySelector('link[rel="apple-touch-icon"]').setAttribute('href', base + 'icons/icon-' + icon + '-180.png')
+          document.querySelector('link[rel="icon"]').setAttribute('href', base + 'icons/icon-' + icon + '-192.png')
+        }
+      } catch (e) {}
     </script>
-    <script type="module" crossorigin src="/life-master/assets/index-Dsxr-Op2.js"></script>
-    <link rel="stylesheet" crossorigin href="/life-master/assets/index-BmJ9mc8p.css">
+    <script type="module" crossorigin src="/life-master/assets/index-BX7s7wYA.js"></script>
+    <link rel="stylesheet" crossorigin href="/life-master/assets/index-CsEFwJu3.css">
   <link rel="manifest" href="/life-master/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/life-master/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
