@@ -9,6 +9,7 @@ import { CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntr
 import { useHabits } from '../hooks/useHabits'
 import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
+import Guide from './Guide'
 import Diagnostics from './Diagnostics'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
@@ -924,6 +925,9 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
 
   return (
     <div className="space-y-4">
+      <Section title="📖 使用指南" desc="用截圖一步一步介紹每個功能">
+        <Guide />
+      </Section>
       <Section title="🎨 主題配色">
         <ThemePicker themeId={themeId} onChange={onThemeChange} />
       </Section>

@@ -113,5 +113,11 @@ export function useReminders() {
 
   const dismiss = (id: string) => setAlerts(prev => prev.filter(t => t.id !== id))
 
-  return { alerts, dismiss }
+  // 任務被刪掉或完成後，橫幅也跟著消失；有改內容時顯示最新的文字
+  const live = alerts.flatMap(a => {
+    const current = todos.find(t => t.id === a.id)
+    return current && !current.done ? [current] : []
+  })
+
+  return { alerts: live, dismiss }
 }

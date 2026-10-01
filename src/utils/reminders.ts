@@ -1,4 +1,4 @@
-import { PRIORITIES, dueStart, reminderAt } from '../data/todos'
+import { QUADRANTS, dueStart, quadrantOf, reminderAt } from '../data/todos'
 import type { Todo } from '../data/todos'
 import { enablePush } from './push'
 
@@ -62,7 +62,7 @@ export function buildIcs(todo: Todo): string | null {
     allDay ? `DTSTART;VALUE=DATE:${icsDate(start)}` : `DTSTART:${icsLocal(start)}`,
     allDay ? `DTEND;VALUE=DATE:${icsDate(end)}` : `DTEND:${icsLocal(end)}`,
     `SUMMARY:${escape(todo.text)}`,
-    `DESCRIPTION:${escape(`LifeMaster 待辦・${todo.category}・優先級${PRIORITIES[todo.priority].label}`)}`,
+    `DESCRIPTION:${escape([`LifeMaster 待辦・${QUADRANTS[quadrantOf(todo)].label}`, todo.note].filter(Boolean).join('\n'))}`,
   ]
   const remind = reminderAt(todo)
   if (remind) {
