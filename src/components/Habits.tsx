@@ -18,6 +18,11 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const LINK_MODE: Record<ActivityLink, string> = { reading: 'reading', listening: 'listening', words: 'flip', grammar: 'grammar' }
 
 const fmt = (n: number) => (Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1))
+/** 計時類習慣的分鐘數顯示成 分:秒（計時器記錄到秒） */
+const minSec = (minutes: number) => {
+  const total = Math.round(minutes * 60)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
 const clock = (ms: number) => {
   const s = Math.floor(ms / 1000)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -26,7 +31,10 @@ const clock = (ms: number) => {
 function Progress({ value, goal, done }: { value: number; goal: number; done: boolean }) {
   return (
     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-      <div className={`h-full rounded-full transition-all ${done ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(100, (value / goal) * 100)}%` }} />
+      <div
+        className={`h-full rounded-full transition-all ${done ? 'bg-emerald-500' : 'bg-primary'}`}
+        style={{ width: `${Math.min(100, (value / goal) * 100)}%` }}
+      />
     </div>
   )
 }
@@ -86,8 +94,9 @@ export default function Habits({
   }
   const stopTimer = () => {
     if (!timer) return
-    const minutes = Math.max(1, Math.round((Date.now() - timer.startAt) / 60000))
-    addAmount(timer.habitId, toDateKey(), minutes)
+    // 照實際時間記錄（精確到秒），不再四捨五入成整分鐘；不到 1 秒當作誤按
+    const seconds = Math.round((Date.now() - timer.startAt) / 1000)
+    if (seconds >= 1) addAmount(timer.habitId, toDateKey(), seconds / 60)
     setTimer(null)
   }
 
@@ -176,7 +185,10 @@ export default function Habits({
           )
         } else if (kind === 'duration') {
           action = running ? (
-            <button onClick={stopTimer} className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-500 px-3.5 py-2 text-sm font-semibold text-white tabular-nums">
+            <button
+              onClick={stopTimer}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-500 px-3.5 py-2 text-sm font-semibold text-white tabular-nums"
+            >
               <Square className="h-3.5 w-3.5 fill-current" /> {clock(now - timer.startAt)}
             </button>
           ) : (
@@ -201,7 +213,11 @@ export default function Habits({
           // count 或手動的 sets
           const step = kind === 'count' ? (habit.step ?? 1) : 1
           action = (
-            <button onClick={() => addAmount(habit.id, toDateKey(), step)} className={`${roundBtn} ${doneToday ? doneClass : 'bg-primary text-on-primary'}`} aria-label="增加">
+            <button
+              onClick={() => addAmount(habit.id, toDateKey(), step)}
+              className={`${roundBtn} ${doneToday ? doneClass : 'bg-primary text-on-primary'}`}
+              aria-label="增加"
+            >
               {doneToday ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
             </button>
           )
@@ -217,10 +233,17 @@ export default function Habits({
                 {fmt(amount)} <span className="text-xs font-normal text-muted">/ {fmt(goal)} ml</span>
               </span>
               <Progress value={amount} goal={goal} done={doneToday} />
-              <button onClick={() => addAmount(habit.id, toDateKey(), -bottle / 2)} disabled={amount <= 0} className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted disabled:opacity-30">
+              <button
+                onClick={() => addAmount(habit.id, toDateKey(), -bottle / 2)}
+                disabled={amount <= 0}
+                className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted disabled:opacity-30"
+              >
                 −½
               </button>
-              <button onClick={() => addAmount(habit.id, toDateKey(), bottle / 2)} className="rounded-full bg-sky-500/15 px-2 py-1 text-xs font-semibold text-sky-600 dark:text-sky-400">
+              <button
+                onClick={() => addAmount(habit.id, toDateKey(), bottle / 2)}
+                className="rounded-full bg-sky-500/15 px-2 py-1 text-xs font-semibold text-sky-600 dark:text-sky-400"
+              >
                 +½
               </button>
             </>
@@ -229,13 +252,20 @@ export default function Habits({
           detail = (
             <>
               <span className="w-28 shrink-0 text-sm font-semibold text-fg tabular-nums">
-                {fmt(amount)} <span className="text-xs font-normal text-muted">/ {goal} 分鐘</span>
+                {minSec(amount)} <span className="text-xs font-normal text-muted">/ {goal} 分鐘</span>
               </span>
               <Progress value={amount} goal={goal} done={doneToday} />
-              <button onClick={() => addAmount(habit.id, toDateKey(), -10)} disabled={amount <= 0} className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted disabled:opacity-30">
+              <button
+                onClick={() => addAmount(habit.id, toDateKey(), -10)}
+                disabled={amount <= 0}
+                className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted disabled:opacity-30"
+              >
                 −10
               </button>
-              <button onClick={() => addAmount(habit.id, toDateKey(), 10)} className="rounded-full bg-primary-soft px-2 py-1 text-xs font-semibold text-primary-ink">
+              <button
+                onClick={() => addAmount(habit.id, toDateKey(), 10)}
+                className="rounded-full bg-primary-soft px-2 py-1 text-xs font-semibold text-primary-ink"
+              >
                 +10
               </button>
             </>
@@ -245,7 +275,10 @@ export default function Habits({
           detail = (
             <>
               <span className="w-28 shrink-0 text-sm font-semibold text-fg tabular-nums">
-                {fmt(amount)} <span className="text-xs font-normal text-muted">/ {fmt(goal)} {unit}</span>
+                {fmt(amount)}{' '}
+                <span className="text-xs font-normal text-muted">
+                  / {fmt(goal)} {unit}
+                </span>
               </span>
               <Progress value={amount} goal={goal} done={doneToday} />
               {link ? (
@@ -330,13 +363,7 @@ export default function Habits({
       </button>
 
       {quizOpen && (
-        <DailyQuiz
-          words={daily.words}
-          answered={daily.answered}
-          reviewIds={daily.reviewIds}
-          onAnswer={daily.answer}
-          onClose={() => setQuizOpen(false)}
-        />
+        <DailyQuiz words={daily.words} answered={daily.answered} reviewIds={daily.reviewIds} onAnswer={daily.answer} onClose={() => setQuizOpen(false)} />
       )}
     </div>
   )

@@ -11,18 +11,20 @@ import Practice from './Practice'
 import Reading from './Reading'
 import { CARD_FILTER_KEY } from '../data/flashcards'
 import type { Card } from '../data/flashcards'
-import { MAX_BOX, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
+import { MAX_BOX, TOEIC_WORDS, WORD_INFO, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
+import { TOEIC_TOPICS, cardsInTopic } from '../data/toeicTopics'
+import { vocabPool } from '../data/vocab'
 import type { Grade } from '../data/toeicWords'
 import { useCards, useDecks } from '../hooks/useCards'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { useWordStats } from '../hooks/useDailyWords'
+import { useVocabReady, useWordLevel, useWordStats } from '../hooks/useDailyWords'
 import { newId, toDateKey } from '../utils/date'
 
 /** 學習分頁目前的模式（首頁「去練習」也會切換它） */
 export type LearnMode = 'flip' | 'practice' | 'reading' | 'listening' | 'grammar' | 'dict'
 export const LEARN_MODE_KEY = 'lifemaster.learnMode'
 
-/** 'all' | 'fav' | 'wrong' | 'toeic' | 'custom' | 'deck:<id>' */
+/** 'all' | 'fav' | 'wrong' | 'toeic' | 'custom' | 'deck:<id>' | 'bank' | 'bank:<主題>' */
 type Filter = string
 
 /** 隨機抽下一張，熟練度越低越容易被抽到 */
@@ -39,9 +41,12 @@ function pickWeighted(cards: Card[], weight: (c: Card) => number, excludeId?: st
 }
 
 export default function Flashcards() {
-  const { cards, setCards } = useCards()
-  const { favorites, decks, isFavorite, toggleFavorite, createDeck, renameDeck, deleteDeck, toggleInDeck, forgetCard } =
-    useDecks()
+  const { cards, setCards, ensureCard } = useCards()
+  // 「多益題庫」：不只自己收過的卡，整個題庫（依目標分數）都能翻
+  const vocabReady = useVocabReady(true)
+  const [level] = useWordLevel()
+  const bankCards = (vocabReady && vocabPool({ list: 'toeic' }, level)) || TOEIC_WORDS.filter((_, i) => WORD_INFO[i].level <= level)
+  const { favorites, decks, isFavorite, toggleFavorite, createDeck, renameDeck, deleteDeck, toggleInDeck, forgetCard } = useDecks()
   const [stats, setStats] = useWordStats()
   const today = toDateKey()
   // 閱讀測驗寫到一半離開的話，回來直接接著寫
@@ -61,6 +66,8 @@ export default function Flashcards() {
     if (f === 'toeic') return cards.filter(c => c.source === 'toeic')
     if (f === 'vocab') return cards.filter(c => c.source === 'vocab')
     if (f === 'custom') return cards.filter(c => !c.source)
+    if (f === 'bank') return bankCards
+    if (f.startsWith('bank:')) return cardsInTopic(bankCards, f.slice(5))
     if (f.startsWith('deck:')) {
       const deck = decks.find(d => `deck:${d.id}` === f)
       return deck ? cards.filter(c => deck.cardIds.includes(c.id)) : []
@@ -69,7 +76,8 @@ export default function Flashcards() {
   }
 
   const filters: { id: Filter; label: string }[] = [
-    { id: 'all', label: '全部' },
+    { id: 'all', label: '我的卡片' },
+    { id: 'bank', label: '📚 多益題庫' },
     { id: 'fav', label: '⭐ 最愛' },
     { id: 'wrong', label: '❌ 最近常錯' },
     { id: 'toeic', label: '多益' },
@@ -79,7 +87,7 @@ export default function Flashcards() {
   ]
 
   // 卡組被刪掉時退回「全部」
-  const effectiveFilter = filters.some(f => f.id === filter) ? filter : 'all'
+  const effectiveFilter = filters.some(f => f.id === filter) || filter.startsWith('bank:') ? filter : 'all'
   const visible = cardsFor(effectiveFilter)
   const weight = (c: Card) => MAX_BOX + 1 - (stats[c.id]?.box ?? 0)
   const current = visible.find(c => c.id === currentId) ?? visible[0]
@@ -99,6 +107,8 @@ export default function Flashcards() {
   const grade = (g: Grade) => {
     if (!current) return
     setStats(prev => ({ ...prev, [current.id]: nextStat(prev[current.id], g, today) }))
+    // 從題庫翻到的字收進自己的卡片，之後「最近常錯」才看得到
+    ensureCard(current)
     nextCard()
   }
 
@@ -212,7 +222,7 @@ export default function Flashcards() {
     return (
       <div className="space-y-4">
         {modeSwitch}
-        <Practice sources={filters.map(f => ({ id: f.id, label: f.label, cards: cardsFor(f.id) }))} />
+        <Practice sources={filters.filter(f => f.id !== 'bank').map(f => ({ id: f.id, label: f.label, cards: cardsFor(f.id) }))} />
       </div>
     )
   }
@@ -226,7 +236,9 @@ export default function Flashcards() {
             key={f.id}
             onClick={() => changeFilter(f.id)}
             className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm transition ${
-              effectiveFilter === f.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface text-muted'
+              effectiveFilter === f.id || (f.id === 'bank' && effectiveFilter.startsWith('bank:'))
+                ? 'bg-primary font-semibold text-on-primary'
+                : 'bg-surface text-muted'
             }`}
           >
             {f.label} <span className="opacity-70">{cardsFor(f.id).length}</span>
@@ -236,6 +248,23 @@ export default function Flashcards() {
           <Plus className="h-4 w-4" /> 卡組
         </button>
       </div>
+
+      {effectiveFilter.startsWith('bank') && vocabReady && (
+        <div className="-mx-4 -mt-2 flex gap-2 overflow-x-auto px-4 pb-1">
+          {TOEIC_TOPICS.map(t => {
+            const id = `bank:${t.id}`
+            return (
+              <button
+                key={t.id}
+                onClick={() => changeFilter(effectiveFilter === id ? 'bank' : id)}
+                className={`shrink-0 rounded-full px-3 py-1 text-xs transition ${effectiveFilter === id ? 'bg-primary-soft font-semibold text-primary-ink ring-1 ring-primary' : 'bg-surface text-muted'}`}
+              >
+                {t.emoji} {t.label} <span className="opacity-70">{cardsInTopic(bankCards, t.id).length}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {activeDeck && (
         <div className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-2.5 shadow-sm">
@@ -275,11 +304,7 @@ export default function Flashcards() {
               跳過 <SkipForward className="h-4 w-4" />
             </button>
           </div>
-          {flipped ? (
-            <GradeButtons onGrade={grade} />
-          ) : (
-            <p className="py-3 text-center text-sm text-faint">翻面後選擇熟練程度，會自動換下一張</p>
-          )}
+          {flipped ? <GradeButtons onGrade={grade} /> : <p className="py-3 text-center text-sm text-faint">翻面後選擇熟練程度，會自動換下一張</p>}
         </>
       ) : (
         <p className="rounded-2xl bg-surface px-6 py-16 text-center text-faint shadow-sm">{emptyText}</p>
@@ -323,9 +348,7 @@ export default function Flashcards() {
                 >
                   <p className="flex items-center gap-1.5 truncate font-medium text-fg">
                     {card.question}
-                    {card.source === 'toeic' && (
-                      <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary-ink">TOEIC</span>
-                    )}
+                    {card.source === 'toeic' && <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary-ink">TOEIC</span>}
                   </p>
                   <p className="truncate text-sm text-muted">{card.answer}</p>
                   <div className="mt-1">
@@ -340,10 +363,7 @@ export default function Flashcards() {
                   <Star className={`h-4 w-4 ${isFavorite(card.id) ? 'fill-current' : ''}`} />
                 </button>
                 {activeDeck ? (
-                  <button
-                    onClick={() => toggleInDeck(activeDeck.id, card)}
-                    className="rounded-lg px-2 py-1 text-xs text-faint hover:text-rose-500"
-                  >
+                  <button onClick={() => toggleInDeck(activeDeck.id, card)} className="rounded-lg px-2 py-1 text-xs text-faint hover:text-rose-500">
                     移出
                   </button>
                 ) : (

@@ -105,33 +105,38 @@ export default function Dictionary() {
             {label}
           </button>
         ))}
-        {list === 'toeic' &&
-          TOEIC_TOPICS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => {
-                setTopic(topic === t.id ? '' : t.id)
-                reset()
-              }}
-              className={chip(topic === t.id)}
-            >
-              {t.emoji} {t.label}
-            </button>
-          ))}
-        {list === 'ceec' &&
-          [1, 2, 3, 4, 5, 6].map(n => (
-            <button
-              key={n}
-              onClick={() => {
-                setLevel(level === n ? 0 : n)
-                reset()
-              }}
-              className={chip(level === n)}
-            >
-              {n} 級
-            </button>
-          ))}
       </div>
+
+      {list !== 'all' && (
+        <div className="-mx-4 -mt-1 flex gap-2 overflow-x-auto px-4 pb-1">
+          {list === 'toeic' &&
+            TOEIC_TOPICS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setTopic(topic === t.id ? '' : t.id)
+                  reset()
+                }}
+                className={chip(topic === t.id)}
+              >
+                {t.emoji} {t.label}
+              </button>
+            ))}
+          {list === 'ceec' &&
+            [1, 2, 3, 4, 5, 6].map(n => (
+              <button
+                key={n}
+                onClick={() => {
+                  setLevel(level === n ? 0 : n)
+                  reset()
+                }}
+                className={chip(level === n)}
+              >
+                {n} 級
+              </button>
+            ))}
+        </div>
+      )}
 
       <div className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1">
         {LETTERS.map(l => (

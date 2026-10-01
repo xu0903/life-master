@@ -133,15 +133,16 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
   }
   const allSources = [bank, ...sources.filter(s => s.cards.length > 0)]
 
-  const [sourceId, setSourceId] = useState('bank')
+  // 題目範圍、題型、作答進度都存起來：切到別頁或 App 被系統關掉，回來還能接著寫
+  const [sourceId, setSourceId] = useLocalStorage('lifemaster.practice.source', 'bank')
   const [topic, setTopic] = useLocalStorage('lifemaster.practiceTopic', '')
-  const [count, setCount] = useState(15)
-  const [type, setType] = useState<QuestionType | 'mixed'>('mixed')
-  const [phase, setPhase] = useState<'setup' | 'quiz' | 'result'>('setup')
-  const [round, setRound] = useState(1)
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [index, setIndex] = useState(0)
-  const [results, setResults] = useState<Result[]>([])
+  const [count, setCount] = useLocalStorage('lifemaster.practice.count', 15)
+  const [type, setType] = useLocalStorage<QuestionType | 'mixed'>('lifemaster.practice.type', 'mixed')
+  const [phase, setPhase] = useLocalStorage<'setup' | 'quiz' | 'result'>('lifemaster.practice.phase', 'setup')
+  const [round, setRound] = useLocalStorage('lifemaster.practice.round', 1)
+  const [questions, setQuestions] = useLocalStorage<Question[]>('lifemaster.practice.questions', [])
+  const [index, setIndex] = useLocalStorage('lifemaster.practice.index', 0)
+  const [results, setResults] = useLocalStorage<Result[]>('lifemaster.practice.results', [])
   const [typed, setTyped] = useState('')
   const [showHint, setShowHint] = useState(false)
   const advanceTimer = useRef<number | undefined>(undefined)
@@ -353,7 +354,13 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
   }
 
   // ---------- 作答 ----------
-  if (!q) return null
+  if (!q)
+    // 存下來的進度對不上（例如題庫改版），回到設定頁
+    return (
+      <button onClick={() => setPhase('setup')} className="w-full rounded-2xl bg-surface py-4 text-sm text-muted shadow-sm">
+        找不到上次的刷題進度，點此重新開始
+      </button>
+    )
   const info = lookupWord(q.card.question)
   const isCorrect = record?.correct ?? false
 

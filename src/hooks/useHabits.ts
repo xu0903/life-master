@@ -26,8 +26,7 @@ export function useHabits() {
     setHabits(prev => prev.map(h => (upgrade[h.id] && !h.kind && !h.target ? { ...h, ...upgrade[h.id] } : h)))
   }, [migrated, setMigrated, setHabits])
 
-  const update = (id: string, patch: Partial<Habit>) =>
-    setHabits(prev => prev.map(h => (h.id === id ? { ...h, ...patch } : h)))
+  const update = (id: string, patch: Partial<Habit>) => setHabits(prev => prev.map(h => (h.id === id ? { ...h, ...patch } : h)))
 
   const toggleDate = (id: string, date: string) =>
     setHabits(prev =>
@@ -42,18 +41,15 @@ export function useHabits() {
     )
 
   const markDone = (id: string, date: string) =>
-    setHabits(prev =>
-      prev.map(h =>
-        h.id === id && !h.completedDates.includes(date) ? { ...h, completedDates: [...h.completedDates, date] } : h,
-      ),
-    )
+    setHabits(prev => prev.map(h => (h.id === id && !h.completedDates.includes(date) ? { ...h, completedDates: [...h.completedDates, date] } : h)))
 
   /** 計量習慣加減數量（次數、毫升、分鐘、組數）；達到每日目標時自動打卡，低於目標時取消 */
   const addAmount = (id: string, date: string, delta: number) =>
     setHabits(prev =>
       prev.map(h => {
         if (h.id !== id) return h
-        const amount = Math.max(0, Math.round(((h.counts?.[date] ?? 0) + delta) * 100) / 100)
+        // 留到小數 4 位：計時器以秒為單位記錄分鐘數
+        const amount = Math.max(0, Math.round(((h.counts?.[date] ?? 0) + delta) * 10000) / 10000)
         const done = amount >= habitGoal(h)
         const others = h.completedDates.filter(d => d !== date)
         return { ...h, counts: { ...h.counts, [date]: amount }, completedDates: done ? [...others, date] : others }
