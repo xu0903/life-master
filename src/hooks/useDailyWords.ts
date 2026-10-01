@@ -4,7 +4,7 @@ import { FLASHCARDS_KEY } from '../data/flashcards'
 import type { Card } from '../data/flashcards'
 import { findCard, nextStat, pickDailyWords, toGrade } from '../data/toeicWords'
 import type { Grade, Level, WordStat } from '../data/toeicWords'
-import { DEFAULT_WORD_SOURCE, WORD_SOURCE_KEY, loadVocab, needsVocab, vocabEntries, vocabPool } from '../data/vocab'
+import { DEFAULT_WORD_SOURCE, WORD_SOURCE_KEY, loadVocab, needsVocab, toeicPriority, vocabEntries, vocabPool } from '../data/vocab'
 import type { WordSource } from '../data/vocab'
 import { toDateKey } from '../utils/date'
 
@@ -69,7 +69,9 @@ export function useDailyWords() {
       learnedIds: new Set(cards.map(c => c.id)),
       stats,
       maxLevel: level,
-      pool: vocabPool(source) ?? undefined,
+      pool: vocabPool(source, level) ?? undefined,
+      // 多益先抽常考的字
+      priority: source.list === 'toeic' ? toeicPriority() : undefined,
     })
     setDaily({ date: today, ids, review, answered: {} })
     setCards(prev => {

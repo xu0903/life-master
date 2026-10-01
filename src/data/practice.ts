@@ -1,5 +1,5 @@
 import type { Card } from './flashcards'
-import { TOEIC_WORDS, WORD_INFO, lookupWord } from './toeicWords'
+import { TOEIC_WORDS, WORD_INFO, allWordCards, lookupWord } from './toeicWords'
 import type { WordStat } from './toeicWords'
 
 /** 看中選英 / 看英選中 / 例句填空（留頭尾字母） */
@@ -24,12 +24,7 @@ export interface Question {
   cloze?: { before: string; after: string; hint: string; translation: string }
 }
 
-const normalize = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/’/g, "'")
+const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/’/g, "'")
 
 /** 卡片的中文意思：題庫字用「(詞性) 中文」，自訂卡用答案 */
 export function meaningOf(card: Card): string {
@@ -90,14 +85,76 @@ export function pickCards(pool: Card[], count: number, stats: Record<string, Wor
   return picked
 }
 
-/** 產生 3 個干擾選項：優先用同詞性的題庫字，看起來更像、更有鑑別度 */
-function distractors(card: Card, type: 'zh2en' | 'en2zh', extra: Card[]): string[] {
+const commonPrefix = (a: string, b: string) => {
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i++
+  return i
+}
+const commonSuffix = (a: string, b: string) => {
+  let i = 0
+  while (i < a.length && i < b.length && a[a.length - 1 - i] === b[b.length - 1 - i]) i++
+  return i
+}
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = cur
+  }
+  return prev[b.length]
+}
+
+/** 中文意思拆成一個個詞，用來排除意思重疊的干擾選項 */
+const meaningParts = (card: Card) =>
+  (lookupWord(card.question)?.zh ?? card.answer)
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .split(/[；;，,、/]/)
+    .map(p => p.trim())
+    .filter(Boolean)
+
+/**
+ * 困難模式的干擾選項：跟答案長得像或容易搞混的字。
+ * 依「易混淆字表、同字首、同字尾（-er、-tion…）、拼字只差一兩個字母、同詞性、同主題」打分，
+ * 意思和答案重疊的字（同義詞）不能當選項，免得出現兩個正確答案。
+ */
+function confusables(card: Card): Card[] {
+  const info = lookupWord(card.question)
+  const w = card.question.toLowerCase()
+  const conf = new Set((info?.conf ?? []).map(x => x.toLowerCase()))
+  const syn = new Set((info?.syn ?? []).map(x => x.toLowerCase()))
+  const parts = new Set(meaningParts(card))
+  const scored: { card: Card; score: number }[] = []
+  for (const c of allWordCards()) {
+    const v = c.question.toLowerCase()
+    if (c.id === card.id || v === w || syn.has(v)) continue
+    const other = lookupWord(v)
+    let score = 0
+    if (conf.has(v) || other?.conf?.some(x => x.toLowerCase() === w)) score += 10
+    const pre = commonPrefix(w, v)
+    const suf = commonSuffix(w, v)
+    if (pre >= 3) score += Math.min(pre, 6) * 1.5
+    if (suf >= 2) score += Math.min(suf, 5) * 1.5
+    if (Math.abs(w.length - v.length) <= 2 && pre + suf >= 2 && editDistance(w, v) <= 2) score += 5
+    if (info && other?.pos === info.pos) score += 2
+    if (info?.topic !== undefined && other?.topic === info.topic) score += 2
+    if (score < 5 || meaningParts(c).some(p => parts.has(p))) continue
+    scored.push({ card: c, score: score + Math.random() * 2 })
+  }
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map(x => x.card)
+}
+
+/** 產生 3 個干擾選項：困難模式先挑長得像的字，其餘優先用同詞性的題庫字 */
+function distractors(card: Card, type: 'zh2en' | 'en2zh', extra: Card[], hard: boolean): string[] {
   const info = lookupWord(card.question)
   const answer = type === 'zh2en' ? card.question : meaningOf(card)
   const toOption = (c: Card) => (type === 'zh2en' ? c.question : meaningOf(c))
   const samePos = info ? TOEIC_WORDS.filter((_, i) => WORD_INFO[i].pos === info.pos) : []
   const result = new Set<string>()
-  for (const pool of [shuffle(samePos), shuffle(extra), shuffle(TOEIC_WORDS)]) {
+  for (const pool of [hard ? shuffle(confusables(card)) : [], shuffle(samePos), shuffle(extra), shuffle(TOEIC_WORDS)]) {
     for (const c of pool) {
       if (result.size >= 3) break
       const opt = toOption(c)
@@ -107,7 +164,7 @@ function distractors(card: Card, type: 'zh2en' | 'en2zh', extra: Card[]): string
   return [...result]
 }
 
-export function buildQuestion(card: Card, type: QuestionType | 'mixed', extra: Card[]): Question {
+export function buildQuestion(card: Card, type: QuestionType | 'mixed', extra: Card[], hard = false): Question {
   const info = lookupWord(card.question)
   const found = info ? findWordInSentence(info.word, info.ex) : null
   const types: QuestionType[] = found ? ['zh2en', 'en2zh', 'cloze'] : ['zh2en', 'en2zh']
@@ -131,9 +188,9 @@ export function buildQuestion(card: Card, type: QuestionType | 'mixed', extra: C
   }
   const mc = t === 'cloze' ? 'zh2en' : t
   const answer = mc === 'zh2en' ? card.question : meaningOf(card)
-  return { id, card, type: mc, answer, options: shuffle([answer, ...distractors(card, mc, extra)]) }
+  return { id, card, type: mc, answer, options: shuffle([answer, ...distractors(card, mc, extra, hard)]) }
 }
 
-export function buildQuiz(cards: Card[], type: QuestionType | 'mixed', extra: Card[]): Question[] {
-  return cards.map(c => buildQuestion(c, type, extra))
+export function buildQuiz(cards: Card[], type: QuestionType | 'mixed', extra: Card[], hard = false): Question[] {
+  return cards.map(c => buildQuestion(c, type, extra, hard))
 }

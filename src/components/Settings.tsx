@@ -5,11 +5,12 @@ import { ACTIVITY_LINKS, HABIT_COLORS, HABIT_ICONS, HABIT_KINDS, VOCAB_HABIT, ha
 import type { ActivityLink, Habit, HabitKind, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useVocabReady, useWordLevel, useWordSource } from '../hooks/useDailyWords'
-import { CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntries } from '../data/vocab'
+import { CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntries, vocabPool } from '../data/vocab'
 import { useHabits } from '../hooks/useHabits'
 import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
 import Guide from './Guide'
+import { AutoNextToggle, DifficultyPicker } from './Practice'
 import Diagnostics from './Diagnostics'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
@@ -93,15 +94,7 @@ function ThemePicker({ themeId, onChange }: { themeId: string; onChange: (id: st
   )
 }
 
-function HabitEditor({
-  initial,
-  onSave,
-  onCancel,
-}: {
-  initial?: Habit
-  onSave: (settings: HabitSettings) => void
-  onCancel: () => void
-}) {
+function HabitEditor({ initial, onSave, onCancel }: { initial?: Habit; onSave: (settings: HabitSettings) => void; onCancel: () => void }) {
   const isVocab = initial?.id === VOCAB_HABIT.id
   const [kind, setKind] = useState<HabitKind>(initial ? habitKind(initial) : 'check')
   const [weekly, setWeekly] = useState(initial?.weeklyTarget ?? 0)
@@ -114,7 +107,7 @@ function HabitEditor({
   const [remindTime, setRemindTime] = useState(initial?.remindTime ?? '')
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'health')
-  const [color, setColor] = useState(initial ? Object.keys(HABIT_COLORS).find(k => HABIT_COLORS[k] === habitColor(initial)) ?? 'indigo' : 'indigo')
+  const [color, setColor] = useState(initial ? (Object.keys(HABIT_COLORS).find(k => HABIT_COLORS[k] === habitColor(initial)) ?? 'indigo') : 'indigo')
 
   const num = (v: string, min: number, max: number, fallback: number) => {
     const n = Number(v)
@@ -234,7 +227,13 @@ function HabitEditor({
       <div className="space-y-2 text-sm text-muted">
         {!isVocab && kind === 'count' && (
           <>
-            {row('每日目標', <>{numberField(target, setTarget, '2', 'w-16')}<input value={unit} onChange={e => setUnit(e.target.value)} maxLength={4} placeholder="單位" className={`${fieldClass} w-16 text-center`} /></>)}
+            {row(
+              '每日目標',
+              <>
+                {numberField(target, setTarget, '2', 'w-16')}
+                <input value={unit} onChange={e => setUnit(e.target.value)} maxLength={4} placeholder="單位" className={`${fieldClass} w-16 text-center`} />
+              </>,
+            )}
             {row(
               '每按一次',
               <select value={step} onChange={e => setStep(Number(e.target.value))} className={fieldClass}>
@@ -362,12 +361,7 @@ function HabitManager() {
             <button onClick={() => move(h.id, -1)} disabled={i === 0} className="p-1.5 text-faint disabled:opacity-30" aria-label="上移">
               <ArrowUp className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => move(h.id, 1)}
-              disabled={i === habits.length - 1}
-              className="p-1.5 text-faint disabled:opacity-30"
-              aria-label="下移"
-            >
+            <button onClick={() => move(h.id, 1)} disabled={i === habits.length - 1} className="p-1.5 text-faint disabled:opacity-30" aria-label="下移">
               <ArrowDown className="h-4 w-4" />
             </button>
             <button onClick={() => setEditing(h.id)} className="p-1.5 text-muted" aria-label="編輯">
@@ -407,8 +401,7 @@ function HabitManager() {
 
 function AppIconPicker() {
   const [iconId, setIconId] = useLocalStorage(APP_ICON_KEY, DEFAULT_APP_ICON)
-  const standalone =
-    window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 
   const choose = (id: number) => {
     setIconId(id)
@@ -441,9 +434,7 @@ function AppIconPicker() {
             要換圖示：用 <span className="font-semibold">Safari</span> 打開這個網站 → 在這裡選好圖示 → 刪掉主畫面上舊的 LifeMaster → 再「加入主畫面」一次。
           </li>
           <li>主畫面 App 和 Safari 的資料是分開的，所以一定要在 Safari 裡選，在主畫面 App 裡選的不會帶過去。</li>
-          <li>
-            刪掉舊的主畫面 App 會一併清掉裡面的資料。請先在下方「資料備份」開啟雲端備份並記下還原碼（或匯出備份檔），重新加入後再還原。
-          </li>
+          <li>刪掉舊的主畫面 App 會一併清掉裡面的資料。請先在下方「資料備份」開啟雲端備份並記下還原碼（或匯出備份檔），重新加入後再還原。</li>
           <li>重新加入後要再開一次通知，推播才會恢復。</li>
           <li>通知裡顯示的小圖示固定是預設那一張。</li>
         </ul>
@@ -456,7 +447,7 @@ function AppIconPicker() {
 function WordSourcePicker() {
   const [source, setSource] = useWordSource()
   const [level, setLevel] = useWordLevel()
-  const vocabReady = useVocabReady(source.list !== 'toeic')
+  const vocabReady = useVocabReady(true)
   const entries = vocabReady ? vocabEntries() : null
 
   const allLists = [
@@ -473,8 +464,7 @@ function WordSourcePicker() {
       return lv >= min && lv <= max
     }).length
 
-  const pickList = (list: (typeof lists)[number]['value']) =>
-    setSource(list === 'toeic' ? { list } : { list, min: 1, max: list === 'ceec' ? 6 : 3 })
+  const pickList = (list: (typeof lists)[number]['value']) => setSource(list === 'toeic' ? { list } : { list, min: 1, max: list === 'ceec' ? 6 : 3 })
 
   return (
     <div className="space-y-3">
@@ -494,9 +484,10 @@ function WordSourcePicker() {
                 <span className={`font-semibold ${level === l.value ? 'text-primary-ink' : 'text-fg'}`}>{l.label}</span>
                 <span className="ml-2 text-xs text-muted">{l.desc}</span>
               </span>
-              <span className="text-xs text-muted">{WORD_INFO.filter(w => w.level <= l.value).length} 字</span>
+              <span className="text-xs text-muted">{(vocabPool(source, l.value) ?? WORD_INFO.filter(w => w.level <= l.value)).length} 字</span>
             </button>
           ))}
+          <p className="text-xs text-faint">每日單字會先抽最常考的字；多益擴充字表由 AI 依主題整理，解釋可能有誤</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -664,9 +655,7 @@ function CloudBackup() {
       {state.enabled && state.code && (
         <div className="rounded-xl bg-surface-2 p-3">
           <p className="text-xs text-muted">還原碼（請抄下來或截圖，遺失就無法還原）</p>
-          <p className="mt-1 font-mono text-lg font-semibold tracking-wider text-fg">
-            {showCode ? formatCode(state.code) : '••••-••••-••••-••••'}
-          </p>
+          <p className="mt-1 font-mono text-lg font-semibold tracking-wider text-fg">{showCode ? formatCode(state.code) : '••••-••••-••••-••••'}</p>
           <div className="mt-2 flex gap-4 text-sm text-primary-ink">
             <button onClick={() => setShowCode(v => !v)}>{showCode ? '隱藏' : '顯示'}</button>
             <button disabled={busy} onClick={() => run(backupNow, '已備份到雲端')}>
@@ -748,10 +737,7 @@ function Backup() {
         {daysSince === null ? '⚠️ 還沒有備份過' : daysSince === 0 ? '✅ 今天已備份' : `上次備份：${daysSince} 天前`}
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={exportData}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-on-primary"
-        >
+        <button onClick={exportData} className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-on-primary">
           <Download className="h-4 w-4" /> 匯出備份
         </button>
         <button
@@ -772,24 +758,14 @@ function Backup() {
   )
 }
 
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T
-  options: { value: T; label: string }[]
-  onChange: (v: T) => void
-}) {
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
     <div className="flex rounded-xl bg-surface-2 p-1">
       {options.map(o => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-lg py-2 text-sm transition ${
-            value === o.value ? 'bg-surface font-semibold text-primary-ink shadow-sm' : 'text-muted'
-          }`}
+          className={`flex-1 rounded-lg py-2 text-sm transition ${value === o.value ? 'bg-surface font-semibold text-primary-ink shadow-sm' : 'text-muted'}`}
         >
           {o.label}
         </button>
@@ -826,10 +802,7 @@ function SpeechSettingsPanel() {
           ]}
         />
       </div>
-      <button
-        onClick={() => speak('Welcome to LifeMaster', settings.accent)}
-        className="flex items-center gap-1.5 text-sm text-primary-ink"
-      >
+      <button onClick={() => speak('Welcome to LifeMaster', settings.accent)} className="flex items-center gap-1.5 text-sm text-primary-ink">
         <Volume2 className="h-4 w-4" /> 試聽
       </button>
     </div>
@@ -922,7 +895,6 @@ function CheckinReminder({ pushOn }: { pushOn: boolean }) {
 }
 
 export default function Settings({ themeId, onThemeChange }: { themeId: string; onThemeChange: (id: string) => void }) {
-
   return (
     <div className="space-y-4">
       <Section title="📖 使用指南" desc="用截圖一步一步介紹每個功能">
@@ -944,6 +916,12 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         <NotificationPanel />
       </Section>
 
+      <Section title="🃏 刷題" desc="和刷題頁的開關同步，在哪邊改都一樣">
+        <div className="space-y-3">
+          <AutoNextToggle />
+          <DifficultyPicker />
+        </div>
+      </Section>
       <Section title="🎯 每日單字" desc="選擇每日 10 字與刷題題庫的範圍，明天抽題起生效">
         <WordSourcePicker />
       </Section>

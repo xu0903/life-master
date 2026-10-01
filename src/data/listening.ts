@@ -29,6 +29,8 @@ export interface SpokenLine {
   text: string
   /** 預先產生的真人化語音檔名（public/audio/ 底下）；檔案不存在時改用裝置語音 */
   audio?: string
+  /** 預錄用的 AI 聲音與口音 */
+  tts?: TtsSpec
 }
 
 // 預錄語音用的聲音與口音：每一題輪流換人、換口音，比照正式考試有美、英、澳腔
@@ -59,7 +61,10 @@ export function audioFileName(spec: TtsSpec, text: string): string {
 
 function withAudio(lines: SpokenLine[], groupIndex: number): SpokenLine[] {
   // 同一題裡男聲、女聲各固定一個人；Part 2 的題目和選項本來就是不同性別的人念
-  return lines.map(line => ({ ...line, audio: audioFileName(ttsSpec(groupIndex, line.voice), line.text) }))
+  return lines.map(line => {
+    const spec = ttsSpec(groupIndex, line.voice)
+    return { ...line, audio: audioFileName(spec, line.text), tts: spec }
+  })
 }
 
 export interface ListeningGroup {
@@ -94,10 +99,7 @@ function buildTest(raw: RawListening): ListeningTest {
     groups.push({
       id,
       part: 2,
-      audio: withAudio(
-        [{ voice: asker, text: item.q }, ...question.options.map((o, k) => ({ voice: other(asker), text: `${LETTER_NAMES[k]}. ${o}` }))],
-        i,
-      ),
+      audio: withAudio([{ voice: asker, text: item.q }, ...question.options.map((o, k) => ({ voice: other(asker), text: `${LETTER_NAMES[k]}. ${o}` }))], i),
       transcript: [{ voice: asker, text: item.q }],
       questions: [question],
     })
@@ -106,7 +108,13 @@ function buildTest(raw: RawListening): ListeningTest {
   raw.part3.forEach((item, i) => {
     const id = `${raw.id}-3-${i}`
     const lines = item.lines.map(([voice, text]) => ({ voice, text }))
-    groups.push({ id, part: 3, audio: withAudio(lines, i), transcript: lines, questions: item.qs.map((q, k) => buildQuestion(q, `${id}-${k}`, number++, 'p3')) })
+    groups.push({
+      id,
+      part: 3,
+      audio: withAudio(lines, i),
+      transcript: lines,
+      questions: item.qs.map((q, k) => buildQuestion(q, `${id}-${k}`, number++, 'p3')),
+    })
   })
   number = 71
   raw.part4.forEach((item, i) => {
@@ -137,3 +145,22 @@ export interface ListeningRecord {
   /** 考試模式（只播一次、限時作答） */
   exam?: boolean
 }
+
+const ACCENT_LABEL: Record<string, string> = { American: '美式', British: '英式', Australian: '澳式' }
+
+/** 每一種預錄聲音挑一句當試聽範例（取 Part 3、4 的句子，比較長、聽得出語調） */
+export const VOICE_SAMPLES: { label: string; line: SpokenLine }[] = (() => {
+  const seen = new Map<string, { label: string; line: SpokenLine }>()
+  for (const test of LISTENING_TESTS) {
+    for (const g of test.groups) {
+      if (g.part === 2) continue
+      for (const line of g.audio) {
+        if (!line.tts) continue
+        const key = `${line.tts.voice}|${line.tts.accent}`
+        if (seen.has(key) || line.text.length < 60) continue
+        seen.set(key, { label: `${line.voice === 'W' ? '女聲' : '男聲'}・${ACCENT_LABEL[line.tts.accent] ?? line.tts.accent}`, line })
+      }
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label, 'zh-Hant'))
+})()

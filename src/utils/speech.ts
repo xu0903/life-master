@@ -10,7 +10,7 @@ export function speak(text: string, accent: Accent = 'en-US') {
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = accent
   utterance.rate = 0.9
-  const voice = synth.getVoices().find(v => v.lang.replace('_', '-') === accent)
+  const voice = englishVoices().find(v => v.lang.replace('_', '-') === accent)
   if (voice) utterance.voice = voice
   synth.speak(utterance)
 }
@@ -19,13 +19,20 @@ export function speak(text: string, accent: Accent = 'en-US') {
 const MALE = /daniel|aaron|fred|alex|arthur|gordon|rishi|oliver|tom\b|david|mark|george|james|guy|ryan|male/i
 const FEMALE = /samantha|karen|moira|tessa|victoria|susan|zira|kate|serena|martha|nicky|allison|ava|jenny|aria|hazel|sonia|libby|female/i
 
+/**
+ * iPhone / Mac 內建的趣味語音（Good News 會用唱的、Bubbles 有泡泡聲…）和 Eloquence 機器人聲，
+ * 念英文單字很怪，直接從清單拿掉
+ */
+const NOVELTY =
+  /novelty|eloquence|\b(good news|bad news|bells|boing|bubbles|cellos|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|bahh|junior|ralph|kathy|fred|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley)\b/i
+
 /** 語音品質分數：神經網路 / 高品質語音聽起來自然很多 */
 export function voiceScore(v: SpeechSynthesisVoice): number {
   let score = 0
   if (/natural|neural|premium/i.test(v.name)) score += 6
   if (/enhanced|online/i.test(v.name)) score += 4
   if (/google/i.test(v.name)) score += 3
-  if (/compact|eloquence|novelty|bad news|bells|boing|bubbles|cellos|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|fred|junior|ralph|kathy|bahh/i.test(v.name)) score -= 10
+  if (/compact/i.test(v.name)) score -= 10
   if (v.lang.replace('_', '-') === 'en-US') score += 1
   return score
 }
@@ -35,7 +42,7 @@ export function englishVoices(): SpeechSynthesisVoice[] {
   if (!canSpeak) return []
   return window.speechSynthesis
     .getVoices()
-    .filter(v => v.lang.replace('_', '-').startsWith('en'))
+    .filter(v => v.lang.replace('_', '-').startsWith('en') && !NOVELTY.test(v.name) && !NOVELTY.test(v.voiceURI))
     .sort((a, b) => voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name))
 }
 
@@ -94,11 +101,6 @@ export function isEnglish(text: string) {
 }
 
 export function cambridgeUrl(word: string) {
-  const slug = word
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, '-')
+  const slug = word.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '-')
   return `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(slug)}`
 }

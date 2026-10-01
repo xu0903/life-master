@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, GraduationCap, Headphones, Play, RotateCcw, Square, Timer, Trophy, X } from 'lucide-react'
 import QuestionBlock, { LookupText } from './QuestionBlock'
-import { LISTENING_HISTORY_KEY, LISTENING_PARTS, LISTENING_TESTS } from '../data/listening'
+import { LISTENING_HISTORY_KEY, LISTENING_PARTS, LISTENING_TESTS, VOICE_SAMPLES } from '../data/listening'
 import type { ListeningGroup, ListeningPart, ListeningRecord } from '../data/listening'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useMistakeWords } from '../hooks/useMistakeWords'
@@ -267,6 +267,37 @@ function ReviewGroup({ group, answers, timedOut }: { group: ListeningGroup; answ
   )
 }
 
+/** 用實際的預錄音檔試聽每一種聲音，速度跟著設定 */
+function VoiceSamples({ speed, voices }: { speed: number; voices: VoiceChoice }) {
+  const [playing, setPlaying] = useState<number | null>(null)
+  useEffect(() => stopAll, [])
+  const toggle = (i: number) => {
+    stopAll()
+    if (playing === i) return setPlaying(null)
+    setPlaying(i)
+    playRecorded(
+      [VOICE_SAMPLES[i].line],
+      speed,
+      line => new Promise(resolve => speakLines([line], 0.95 * speed, resolve, voices)),
+      () => setPlaying(null),
+    )
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {VOICE_SAMPLES.map((v, i) => (
+        <button
+          key={v.label}
+          onClick={() => toggle(i)}
+          className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition ${playing === i ? 'bg-primary-soft font-semibold text-primary-ink ring-2 ring-primary' : 'bg-surface-2 text-fg'}`}
+        >
+          {playing === i ? <Square className="h-4 w-4 shrink-0 fill-current" /> : <Play className="h-4 w-4 shrink-0 fill-current" />}
+          {v.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** 選擇女聲 / 男聲；品質好的語音排前面並標上推薦 */
 function VoicePicker({ value, onChange }: { value: VoiceChoice; onChange: (v: VoiceChoice) => void }) {
   const [voices, setVoices] = useState(englishVoices)
@@ -310,8 +341,8 @@ function VoicePicker({ value, onChange }: { value: VoiceChoice; onChange: (v: Vo
       {select('M', '男聲', 'Let me see. We can seat eight people in the private room at the back.')}
       {!hasGood && (
         <p className="text-xs leading-relaxed text-faint">
-          聽起來生硬是因為裝置只有基本語音。iPhone 可以到「設定 → 輔助使用 → 朗讀內容 → 聲音 → 英文」下載標示「高品質」或「增強」的聲音（例如
-          Ava、Evan），下載後回來這裡選擇；電腦用 Edge 瀏覽器會有自然的 Natural 語音。
+          這裡列的是裝置內建語音，聽力考題用的是上面的 AI 預錄語音，不受影響。iPhone 在「設定 → 輔助使用 → 朗讀內容」下載的「增強」語音，iOS 通常不開放給網頁
+          App 使用，所以下載了也可能不會出現在這個清單；電腦用 Edge 瀏覽器會有自然的 Natural 語音。
         </p>
       )}
     </div>
@@ -614,8 +645,15 @@ export default function Listening() {
         <p className="mb-2 text-sm font-semibold text-fg">播放速度</p>
         <SpeedPicker value={speed} onChange={setSpeed} />
         <p className="mt-1.5 text-xs text-faint">1x 是原始錄音速度，練習和考試模式都會套用</p>
-        <p className="mt-4 mb-2 text-sm font-semibold text-fg">朗讀聲音</p>
-        <VoicePicker value={voices} onChange={setVoices} />
+        <p className="mt-4 text-sm font-semibold text-fg">試聽考題語音</p>
+        <p className="mb-2 text-xs text-faint">考題是 AI 預錄的 {VOICE_SAMPLES.length} 種聲音（美、英、澳腔），試聽會用上面選的速度播放</p>
+        <VoiceSamples speed={speed} voices={voices} />
+        <details className="mt-3">
+          <summary className="cursor-pointer text-xs text-faint">備用裝置語音（只有錄音檔載入失敗時才會用到）</summary>
+          <div className="mt-2">
+            <VoicePicker value={voices} onChange={setVoices} />
+          </div>
+        </details>
       </div>
     </div>
   )

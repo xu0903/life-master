@@ -96,6 +96,66 @@
   --primary-ink: #8a5a12;
 }
 
+[data-theme="lavender"] {
+  --bg: #f5f3fb;
+  --surface: #ffffff;
+  --surface-2: #efebf9;
+  --line: #e0d9f2;
+  --fg: #221a3a;
+  --muted: #6f6590;
+  --faint: #a59dc0;
+  --primary: #8b5cf6;
+  --primary-2: #c084fc;
+  --on-primary: #ffffff;
+  --primary-soft: #f1eafe;
+  --primary-ink: #6d28d9;
+}
+
+[data-theme="peach"] {
+  --bg: #fff5f0;
+  --surface: #ffffff;
+  --surface-2: #fdebe3;
+  --line: #f7d9cc;
+  --fg: #3a1d12;
+  --muted: #8f6556;
+  --faint: #c29d90;
+  --primary: #f26b5b;
+  --primary-2: #fb923c;
+  --on-primary: #ffffff;
+  --primary-soft: #ffe8e1;
+  --primary-ink: #c2410c;
+}
+
+[data-theme="matcha"] {
+  --bg: #f3f6ec;
+  --surface: #fdfffa;
+  --surface-2: #e9efdc;
+  --line: #d9e3c6;
+  --fg: #1f2a12;
+  --muted: #66744f;
+  --faint: #9fab8a;
+  --primary: #65a30d;
+  --primary-2: #84cc16;
+  --on-primary: #ffffff;
+  --primary-soft: #ecf5d8;
+  --primary-ink: #4d7c0f;
+}
+
+[data-theme="graphite"] {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #eeeef0;
+  --line: #e1e1e5;
+  --fg: #18181b;
+  --muted: #63636b;
+  --faint: #a1a1aa;
+  --primary: #27272a;
+  --primary-2: #52525b;
+  --on-primary: #ffffff;
+  --primary-soft: #e8e8eb;
+  --primary-ink: #18181b;
+}
+
 /* ---------- 深色主題 ---------- */
 [data-theme="obsidian"] {
   --bg: #0b0b0d;
@@ -140,6 +200,66 @@
   --on-primary: #06231a;
   --primary-soft: #133a2d;
   --primary-ink: #6ee7b7;
+}
+
+[data-theme="wine"] {
+  --bg: #14080c;
+  --surface: #211015;
+  --surface-2: #2d161d;
+  --line: #3b1f28;
+  --fg: #fbeaee;
+  --muted: #c49aa6;
+  --faint: #7d5560;
+  --primary: #f43f5e;
+  --primary-2: #fb7185;
+  --on-primary: #ffffff;
+  --primary-soft: #3a1520;
+  --primary-ink: #fda4af;
+}
+
+[data-theme="ocean"] {
+  --bg: #03131b;
+  --surface: #0a1f2a;
+  --surface-2: #112b39;
+  --line: #183849;
+  --fg: #e2f6fc;
+  --muted: #8db4c4;
+  --faint: #52798a;
+  --primary: #22d3ee;
+  --primary-2: #38bdf8;
+  --on-primary: #03202a;
+  --primary-soft: #0e3442;
+  --primary-ink: #67e8f9;
+}
+
+[data-theme="sunset"] {
+  --bg: #150c09;
+  --surface: #221510;
+  --surface-2: #2e1d16;
+  --line: #3d281f;
+  --fg: #fdf0e8;
+  --muted: #c7a291;
+  --faint: #806152;
+  --primary: #fb923c;
+  --primary-2: #f472b6;
+  --on-primary: #2a1206;
+  --primary-soft: #3d2216;
+  --primary-ink: #fdba74;
+}
+
+[data-theme="charcoal"] {
+  --bg: #0e0f11;
+  --surface: #18191c;
+  --surface-2: #222327;
+  --line: #2e2f34;
+  --fg: #ededef;
+  --muted: #a1a1aa;
+  --faint: #63636b;
+  --primary: #e4e4e7;
+  --primary-2: #a1a1aa;
+  --on-primary: #18181b;
+  --primary-soft: #2a2b30;
+  --primary-ink: #f4f4f5;
 }
 
 html,
@@ -187,4 +307,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .todo-pop, .todo-flash { animation: none; }
   .confetti-piece { display: none; }
+}
+
+/* 地獄模式的倒數條：從滿格縮到 0 */
+@keyframes countdown {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+.countdown-bar {
+  animation-name: countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }

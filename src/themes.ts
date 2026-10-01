@@ -16,9 +16,17 @@ export const THEMES: Theme[] = [
   { id: 'sky', name: '晴空藍', mode: 'light', swatch: ['#eef5fc', '#0ea5e9', '#3b82f6'] },
   { id: 'sakura', name: '櫻花粉', mode: 'light', swatch: ['#fdf2f5', '#ec4899', '#f472b6'] },
   { id: 'latte', name: '奶茶暖棕', mode: 'light', swatch: ['#f6f1ea', '#b7791f', '#d69e2e'] },
+  { id: 'lavender', name: '薰衣草紫', mode: 'light', swatch: ['#f5f3fb', '#8b5cf6', '#c084fc'] },
+  { id: 'peach', name: '蜜桃珊瑚', mode: 'light', swatch: ['#fff5f0', '#f26b5b', '#fb923c'] },
+  { id: 'matcha', name: '抹茶綠', mode: 'light', swatch: ['#f3f6ec', '#65a30d', '#84cc16'] },
+  { id: 'graphite', name: '石墨灰', mode: 'light', swatch: ['#f4f4f5', '#27272a', '#52525b'] },
   { id: 'obsidian', name: '曜石黑金', mode: 'dark', swatch: ['#0b0b0d', '#d4af37', '#a8842a'] },
   { id: 'midnight', name: '午夜星藍', mode: 'dark', swatch: ['#0a0f1e', '#818cf8', '#c084fc'] },
   { id: 'forest', name: '墨綠森林', mode: 'dark', swatch: ['#08130f', '#34d399', '#14b8a6'] },
+  { id: 'wine', name: '酒紅絲絨', mode: 'dark', swatch: ['#14080c', '#f43f5e', '#fb7185'] },
+  { id: 'ocean', name: '深海藍', mode: 'dark', swatch: ['#03131b', '#22d3ee', '#38bdf8'] },
+  { id: 'sunset', name: '晚霞橘粉', mode: 'dark', swatch: ['#150c09', '#fb923c', '#f472b6'] },
+  { id: 'charcoal', name: '炭灰極簡', mode: 'dark', swatch: ['#0e0f11', '#e4e4e7', '#a1a1aa'] },
 ]
 
 /** 預設用淺色主題；要跟隨系統或用深色可以到設定裡選 */
