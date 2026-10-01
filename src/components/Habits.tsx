@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, Bell, CalendarClock, Check, ChevronRight, Droplet, Flame, Minus, Play, Plus, Settings2, Square } from 'lucide-react'
+import { ArrowRight, Bell, CalendarClock, Check, Droplet, Flame, Minus, Play, Plus, Settings2, Square } from 'lucide-react'
 import DailyQuiz from './DailyQuiz'
+import TodayPlan from './TodayPlan'
 import { ACTIVITY_LINKS, HABIT_TIMER_KEY, VOCAB_HABIT, habitColor, habitGoal, habitIcon, habitKind, habitStreak, isHabitDone, weekCount } from '../data/habits'
 import type { ActivityLink, Habit, HabitTimer } from '../data/habits'
 import { sourceLabel } from '../data/vocab'
@@ -30,7 +31,15 @@ function Progress({ value, goal, done }: { value: number; goal: number; done: bo
   )
 }
 
-export default function Habits({ onManage, onPractice }: { onManage: () => void; onPractice: (mode: string) => void }) {
+export default function Habits({
+  onManage,
+  onPractice,
+  onTodos,
+}: {
+  onManage: () => void
+  onPractice: (mode: string, filter?: string) => void
+  onTodos: () => void
+}) {
   const { habits, toggleDate, markDone, addAmount, setAmount } = useHabits()
   const { upcoming } = useExams()
   const activity = useActivityToday()
@@ -107,24 +116,20 @@ export default function Habits({ onManage, onPractice }: { onManage: () => void;
         ))}
       </div>
 
-      {daily.ready && (
-        <button
-          onClick={() => setQuizOpen(true)}
-          className="flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft text-2xl">📖</div>
-          <div className="flex-1">
-            <p className="font-semibold text-fg">每日{sourceLabel(wordSource)} 10 字</p>
-            <p className="text-sm text-muted">
-              {daily.complete
-                ? '今天已完成，點擊複習'
-                : `進度 ${daily.answeredCount} / ${daily.words.length}` +
-                  (daily.reviewIds.size ? `・含 ${daily.reviewIds.size} 個複習字` : '')}
-            </p>
-          </div>
-          <ChevronRight className="h-5 w-5 text-faint" />
-        </button>
-      )}
+      <TodayPlan
+        habits={habits}
+        words={{
+          label: sourceLabel(wordSource),
+          answered: daily.answeredCount,
+          total: daily.words.length,
+          complete: daily.complete,
+          ready: daily.ready,
+        }}
+        onOpenWords={() => setQuizOpen(true)}
+        onPractice={onPractice}
+        onTodos={onTodos}
+        onHabit={id => document.getElementById(`habit-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+      />
 
       {habits.map(habit => {
         const Icon = habitIcon(habit)
@@ -262,7 +267,7 @@ export default function Habits({ onManage, onPractice }: { onManage: () => void;
         }
 
         return (
-          <div key={habit.id} className="rounded-2xl bg-surface p-4 shadow-sm">
+          <div key={habit.id} id={`habit-${habit.id}`} className="scroll-mt-24 rounded-2xl bg-surface p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${color.chip}`}>
                 <Icon className="h-6 w-6" />

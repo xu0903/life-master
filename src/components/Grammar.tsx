@@ -4,8 +4,9 @@ import QuestionBlock from './QuestionBlock'
 import { GRAMMAR_PROGRESS_KEY, GRAMMAR_UNITS } from '../data/grammar'
 import type { GrammarUnit } from '../data/grammar'
 import { READING_TAGS_KEY, TAGS, buildQuestion } from '../data/reading'
-import type { TagStats } from '../data/reading'
+import type { ReadingQuestion, TagStats } from '../data/reading'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useMistakeWords } from '../hooks/useMistakeWords'
 import { speak } from '../utils/speech'
 import { toDateKey } from '../utils/date'
 
@@ -59,7 +60,17 @@ function Lesson({ unit, onStart, onBack }: { unit: GrammarUnit; onStart: () => v
   )
 }
 
-function Quiz({ unit, round, onDone, onBack }: { unit: GrammarUnit; round: number; onDone: (correct: number) => void; onBack: () => void }) {
+function Quiz({
+  unit,
+  round,
+  onDone,
+  onBack,
+}: {
+  unit: GrammarUnit
+  round: number
+  onDone: (correct: number, wrong: ReadingQuestion[]) => void
+  onBack: () => void
+}) {
   const questions = useMemo(() => quizOf(unit, round), [unit, round])
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number>>({})
@@ -69,7 +80,10 @@ function Quiz({ unit, round, onDone, onBack }: { unit: GrammarUnit; round: numbe
 
   const next = () => {
     if (last) {
-      onDone(questions.filter(x => answers[x.id] === x.answer).length)
+      onDone(
+        questions.filter(x => answers[x.id] === x.answer).length,
+        questions.filter(x => answers[x.id] !== x.answer),
+      )
       return
     }
     setIndex(i => i + 1)
@@ -123,6 +137,8 @@ export default function Grammar() {
   const [view, setView] = useState<'lesson' | 'quiz' | 'result'>('lesson')
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
+  const [collected, setCollected] = useState(0)
+  const { collect } = useMistakeWords()
 
   const unit = GRAMMAR_UNITS.find(u => u.id === unitId)
   const done = GRAMMAR_UNITS.filter(u => progress[u.id]).length
@@ -160,8 +176,10 @@ export default function Grammar() {
         unit={unit}
         round={round}
         onBack={() => setView('lesson')}
-        onDone={correct => {
+        onDone={(correct, wrong) => {
           setScore(correct)
+          setCollected(0)
+          void collect(wrong).then(setCollected)
           setProgress(p => ({ ...p, [unit.id]: { best: Math.max(correct, p[unit.id]?.best ?? 0), date: toDateKey() } }))
           setView('result')
           window.scrollTo({ top: 0 })
@@ -184,6 +202,11 @@ export default function Grammar() {
           </p>
           <p className="mt-1 text-sm text-muted">{score === unit.quiz.length ? '全對！這個單元已經掌握了' : '再看一次重點，或重新測驗'}</p>
         </div>
+        {collected > 0 && (
+          <p className="rounded-2xl bg-primary-soft px-4 py-2.5 text-center text-sm text-primary-ink">
+            已把 {collected} 個生字收進「錯題生字」卡組，到「翻卡」就能複習
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setView('lesson')} className="flex items-center justify-center gap-1.5 rounded-2xl bg-surface py-3 font-medium text-fg shadow-sm">
             <RotateCcw className="h-4 w-4" /> 複習重點

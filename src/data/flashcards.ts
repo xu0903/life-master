@@ -7,3 +7,5 @@ export interface Card {
 }
 
 export const FLASHCARDS_KEY = 'lifemaster.flashcards'
+/** 翻卡分頁目前的篩選（今日任務可以直接跳到某個卡組） */
+export const CARD_FILTER_KEY = 'lifemaster.cardFilter'

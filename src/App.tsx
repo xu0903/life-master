@@ -40,6 +40,7 @@ export default function App() {
   useProgressSync()
   useCloudBackup()
   const [, setLearnMode] = useLocalStorage('lifemaster.learnMode', 'flip')
+  const [, setCardFilter] = useLocalStorage('lifemaster.cardFilter', 'all')
   const activeLabel = TABS.find(t => t.id === tab)?.label
 
   const today = new Date().toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' })
@@ -64,10 +65,12 @@ export default function App() {
           {tab === 'habits' && (
             <Habits
               onManage={() => goTo('settings')}
-              onPractice={mode => {
+              onPractice={(mode, filter) => {
                 setLearnMode(mode)
+                if (filter) setCardFilter(filter)
                 goTo('flashcards')
               }}
+              onTodos={() => goTo('todos')}
             />
           )}
           {tab === 'todos' && <Todos />}

@@ -16,6 +16,7 @@ import {
 } from '../data/reading'
 import type { ReadingGroup, ReadingQuestion, ReadingRecord, ReadingTest, SectionId, TagStats } from '../data/reading'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useMistakeWords } from '../hooks/useMistakeWords'
 import { toDateKey } from '../utils/date'
 
 type Scope = ReadingRecord['scope']
@@ -139,6 +140,8 @@ export default function Reading() {
   const [tagStats, setTagStats] = useLocalStorage<TagStats>(READING_TAGS_KEY, {})
   const [wrongIds, setWrongIds] = useLocalStorage<string[]>(READING_WRONG_KEY, [])
   const [result, setResult] = useState<Session | null>(null)
+  const [collected, setCollected] = useState(0)
+  const { collect } = useMistakeWords()
 
   const active = session ?? result
   const test = READING_TESTS.find(t => t.id === testId) ?? READING_TESTS[0]
@@ -198,6 +201,8 @@ export default function Reading() {
     })
     setResult(session)
     setSession(null)
+    setCollected(0)
+    void collect(questions.filter(q => !isRight(q))).then(setCollected)
     window.scrollTo({ top: 0 })
   }
 
@@ -369,6 +374,11 @@ export default function Reading() {
           )}
         </div>
 
+        {collected > 0 && (
+          <p className="rounded-2xl bg-primary-soft px-4 py-2.5 text-center text-sm text-primary-ink">
+            已把 {collected} 個生字收進「錯題生字」卡組，到「翻卡」就能複習
+          </p>
+        )}
         {bySection.length > 1 && (
           <div className="space-y-2.5 rounded-2xl bg-surface p-4 shadow-sm">
             {bySection.map(s => (

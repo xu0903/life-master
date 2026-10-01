@@ -9,6 +9,7 @@ import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
 import Practice from './Practice'
 import Reading from './Reading'
+import { CARD_FILTER_KEY } from '../data/flashcards'
 import type { Card } from '../data/flashcards'
 import { MAX_BOX, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
 import type { Grade } from '../data/toeicWords'
@@ -45,7 +46,7 @@ export default function Flashcards() {
   const today = toDateKey()
   // 閱讀測驗寫到一半離開的話，回來直接接著寫
   const [mode, setMode] = useLocalStorage<LearnMode>(LEARN_MODE_KEY, 'flip')
-  const [filter, setFilter] = useState<Filter>('all')
+  const [filter, setFilter] = useLocalStorage<Filter>(CARD_FILTER_KEY, 'all')
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [flipped, setFlipped] = useState(false)
   const [question, setQuestion] = useState('')

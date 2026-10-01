@@ -4,6 +4,7 @@ import QuestionBlock, { LookupText } from './QuestionBlock'
 import { LISTENING_HISTORY_KEY, LISTENING_PARTS, LISTENING_TESTS } from '../data/listening'
 import type { ListeningGroup, ListeningPart, ListeningRecord } from '../data/listening'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useMistakeWords } from '../hooks/useMistakeWords'
 import { toDateKey } from '../utils/date'
 import { playRecorded, stopRecorded } from '../utils/audio'
 import { canSpeak, englishVoices, speakLines, stopSpeaking, voiceScore } from '../utils/speech'
@@ -119,6 +120,8 @@ export default function Listening() {
   const [testId, setTestId] = useState(LISTENING_TESTS[0].id)
   const [session, setSession] = useState<Session | null>(null)
   const [result, setResult] = useState<Session | null>(null)
+  const [collected, setCollected] = useState(0)
+  const { collect } = useMistakeWords()
   const [history, setHistory] = useLocalStorage<ListeningRecord[]>(LISTENING_HISTORY_KEY, [])
   const [speed, setSpeed] = useLocalStorage('lifemaster.listeningRate', SPEEDS[0].rate)
   const [voices, setVoices] = useLocalStorage<VoiceChoice>('lifemaster.listeningVoices', {})
@@ -153,6 +156,8 @@ export default function Listening() {
       const questions = groups.flatMap(g => g.questions)
       const correct = questions.filter(q => session.answers[q.id] === q.answer).length
       setHistory(prev => [...prev, { date: toDateKey(), testId: test.id, part: session.part, correct, total: questions.length }].slice(-200))
+      setCollected(0)
+      void collect(questions.filter(q => session.answers[q.id] !== q.answer)).then(setCollected)
       setResult(session)
       setSession(null)
       window.scrollTo({ top: 0 })
@@ -251,6 +256,11 @@ export default function Listening() {
           </p>
           <p className="mt-1 text-sm text-muted">答對率 {pct}%</p>
         </div>
+        {collected > 0 && (
+          <p className="rounded-2xl bg-primary-soft px-4 py-2.5 text-center text-sm text-primary-ink">
+            已把 {collected} 個生字收進「錯題生字」卡組，到「翻卡」就能複習
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => start(result.part)}
