@@ -16,6 +16,8 @@ export default defineConfig(({ command }) => ({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // 在 main.tsx 用 virtual:pwa-register 自己註冊，才會在新版裝好時自動重新載入
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'LifeMaster',

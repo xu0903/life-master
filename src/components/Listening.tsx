@@ -7,6 +7,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useMistakeWords } from '../hooks/useMistakeWords'
 import { toDateKey } from '../utils/date'
 import { playRecorded, setPlaybackRate, stopRecorded } from '../utils/audio'
+import { logStudy } from '../data/studyLog'
 import { canSpeak, englishVoices, speakLines, stopSpeaking, voiceScore } from '../utils/speech'
 import type { VoiceChoice } from '../utils/speech'
 
@@ -32,6 +33,12 @@ const EXAM_SECONDS: Record<ListeningPart, number> = { 2: 5, 3: 10, 4: 10 }
 /** 預錄音檔用倍率播放；沒有音檔的句子用裝置語音，速度換算成 speechSynthesis 的 rate */
 function playGroup(group: ListeningGroup, speed: number, voices: VoiceChoice, onEnd: () => void) {
   playRecorded(group.audio, speed, line => new Promise(resolve => speakLines([line], 0.95 * speed, resolve, voices)), onEnd)
+}
+
+/** 多益菜單的練習紀錄：Part 2 記題數，Part 3、4 記段數 */
+function logGroup(group: ListeningGroup) {
+  if (group.part === 2) logStudy('l2', group.questions.length)
+  else logStudy('l34')
 }
 
 function stopAll() {
@@ -131,6 +138,7 @@ function ExamRun({
   }
 
   const advance = () => {
+    logGroup(group)
     const missed = group.questions.filter(q => answers[q.id] === undefined).map(q => q.id)
     const allMissed = [...timedOut, ...missed]
     if (index >= groups.length - 1) {
@@ -427,6 +435,7 @@ export default function Listening() {
 
     const next = () => {
       stopSpeaking()
+      logGroup(group)
       if (!last) {
         setSession(s => (s ? { ...s, index: s.index + 1, checked: false } : s))
         window.scrollTo({ top: 0 })

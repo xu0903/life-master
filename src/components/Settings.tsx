@@ -59,7 +59,8 @@ function VersionInfo() {
       if (!reg) return setStatus('這個瀏覽器沒有離線快取，重新整理就是最新版')
       await reg.update()
       // 有新版會自動安裝並重新載入頁面；幾秒後還在這裡就代表已是最新版
-      window.setTimeout(() => setStatus(reg.installing || reg.waiting ? '發現新版，安裝中…' : '已經是最新版'), 2500)
+      if (reg.installing || reg.waiting) setStatus('發現新版，裝好會自動重新載入…')
+      else window.setTimeout(() => setStatus(reg.installing || reg.waiting ? '發現新版，裝好會自動重新載入…' : '已經是最新版'), 2500)
     } catch {
       setStatus('檢查失敗，請確認網路')
     }

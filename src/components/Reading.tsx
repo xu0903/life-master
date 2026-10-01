@@ -33,6 +33,7 @@ import {
 import type { ReadingGroup, ReadingQuestion, ReadingRecord, ReadingTest, SectionId, TagStats } from '../data/reading'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useMistakeWords } from '../hooks/useMistakeWords'
+import { logStudy } from '../data/studyLog'
 import { toDateKey } from '../utils/date'
 
 type Scope = ReadingRecord['scope']
@@ -395,6 +396,15 @@ export default function Reading() {
 
   const finish = (done: Session | null = session) => {
     if (!done) return
+    // 多益菜單的練習紀錄：有作答的題組才算
+    for (const g of groups) {
+      const answered = g.questions.filter(q => done.answers[q.id] !== undefined).length
+      if (!answered) continue
+      if (g.section === 'p5') logStudy('p5', answered)
+      else logStudy(g.section === 'p6' ? 'p6' : 'p7')
+    }
+    if (done.scope === 'wrong') logStudy('wrong')
+    if (done.scope === 'full') logStudy('mock')
     const questions = groups.flatMap(g => g.questions)
     const isRight = (q: ReadingQuestion) => done.answers[q.id] === q.answer
     const correct = questions.filter(isRight).length

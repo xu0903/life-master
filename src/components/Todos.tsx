@@ -1,12 +1,24 @@
 import { useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Bell, Check, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Bell, Check, Plus, Repeat, SlidersHorizontal, Trash2 } from 'lucide-react'
 import Confetti from './Confetti'
 import Pomodoro from './Pomodoro'
 import TodoCalendar from './TodoCalendar'
 import type { CalendarView } from './TodoCalendar'
 import TodoSheet from './TodoSheet'
-import { DEFAULT_QUADRANT, DEFAULT_TAG, QUADRANTS, QUADRANT_ORDER, TAG_NAMES_KEY, TODOS_KEY, quadrantOf, reminderAt, tagOf } from '../data/todos'
+import {
+  DEFAULT_QUADRANT,
+  DEFAULT_TAG,
+  QUADRANTS,
+  QUADRANT_ORDER,
+  TAG_NAMES_KEY,
+  TODOS_KEY,
+  nextOccurrence,
+  quadrantOf,
+  reminderAt,
+  repeatLabel,
+  tagOf,
+} from '../data/todos'
 import type { TagNames, Todo } from '../data/todos'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { diffDays, newId, toDateKey } from '../utils/date'
@@ -115,8 +127,31 @@ export default function Todos() {
   }
 
   const toggleTodo = (id: string) => {
-    const completing = !todos.find(t => t.id === id)?.done
-    setTodos(prev => prev.map(t => (t.id === id ? { ...t, done: !t.done, completedDate: !t.done ? today : undefined } : t)))
+    const target = todos.find(t => t.id === id)
+    if (!target) return
+    const completing = !target.done
+    if (completing && target.repeat && target.dueDate) {
+      // 重複任務：完成這一次，同時排好下一次
+      const next: Todo = {
+        ...target,
+        id: newId(),
+        done: false,
+        completedDate: undefined,
+        notifiedAt: undefined,
+        spawnedId: undefined,
+        createdDate: today,
+        dueDate: nextOccurrence(target, today),
+        repeatDay: target.repeat === 'monthly' ? (target.repeatDay ?? Number(target.dueDate.slice(8))) : undefined,
+      }
+      setTodos(prev => [next, ...prev.map(t => (t.id === id ? { ...t, done: true, completedDate: today, spawnedId: next.id } : t))])
+    } else if (!completing && target.spawnedId) {
+      // 取消完成：把當初自動產生、還沒動過的下一次收回
+      setTodos(prev =>
+        prev
+          .filter(t => !(t.id === target.spawnedId && !t.done))
+          .map(t => (t.id === id ? { ...t, done: false, completedDate: undefined, spawnedId: undefined } : t)),
+      )
+    } else setTodos(prev => prev.map(t => (t.id === id ? { ...t, done: !t.done, completedDate: !t.done ? today : undefined } : t)))
     if (!completing) return
     setJustDone(id)
     window.setTimeout(() => setJustDone(current => (current === id ? null : current)), 900)
@@ -254,6 +289,12 @@ export default function Todos() {
                                 <Bell className="h-3 w-3" />
                                 {remindAt.getMonth() + 1}/{remindAt.getDate()} {String(remindAt.getHours()).padStart(2, '0')}:
                                 {String(remindAt.getMinutes()).padStart(2, '0')}
+                              </span>
+                            )}
+                            {todo.repeat && !todo.done && (
+                              <span className="flex items-center gap-0.5 text-faint">
+                                <Repeat className="h-3 w-3" />
+                                {repeatLabel(todo.repeat)}
                               </span>
                             )}
                             {todo.note && <span className="max-w-[10rem] truncate text-faint">{todo.note}</span>}

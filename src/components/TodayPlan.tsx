@@ -5,10 +5,12 @@ import { VOCAB_HABIT, isHabitDone } from '../data/habits'
 import type { Habit } from '../data/habits'
 import { GROUP_BY_ID, READING_WRONG_KEY } from '../data/reading'
 import { TODOS_KEY } from '../data/todos'
+import { TASKS } from '../data/studyPlan'
 import type { Todo } from '../data/todos'
 import { recentWrongIds } from '../data/toeicWords'
 import { useDecks } from '../hooks/useCards'
 import { useWordStats } from '../hooks/useDailyWords'
+import { useStudyPlan } from '../hooks/useStudyPlan'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { toDateKey } from '../utils/date'
 
@@ -64,6 +66,10 @@ export default function TodayPlan({ habits, words, onOpenWords, onPractice, onTo
   const [wrongQuestions] = useLocalStorage<string[]>(READING_WRONG_KEY, [])
   const [stats] = useWordStats()
   const { decks } = useDecks()
+  const plan = useStudyPlan()
+  // 多益菜單（每日單字已經是獨立一項，這裡不重複算）
+  const planTasks = plan.settings ? plan.todayTasks.filter(t => t.kind !== 'words') : []
+  const planDone = planTasks.filter(plan.isDone).length
 
   const others = habits.filter(h => h.id !== VOCAB_HABIT.id)
   const remaining = others.filter(h => !isHabitDone(h, today))
@@ -76,9 +82,12 @@ export default function TodayPlan({ habits, words, onOpenWords, onPractice, onTo
   const readingWrong = wrongQuestions.filter(id => GROUP_BY_ID.has(id.slice(0, id.lastIndexOf('-')))).length
 
   // 必做：每日單字、每個習慣、今天到期的待辦
-  const tasks = [words.ready ? words.complete : null, ...others.map(h => isHabitDone(h, today)), dueTodos.length === 0].filter(
-    (x): x is boolean => x !== null,
-  )
+  const tasks = [
+    words.ready ? words.complete : null,
+    ...others.map(h => isHabitDone(h, today)),
+    dueTodos.length === 0,
+    planTasks.length ? planDone === planTasks.length : null,
+  ].filter((x): x is boolean => x !== null)
   const doneTasks = tasks.filter(Boolean).length
   const suggestions = mistakeToReview + recentWrong + readingWrong
 
@@ -104,6 +113,20 @@ export default function TodayPlan({ habits, words, onOpenWords, onPractice, onTo
             title={`每日${words.label} 10 字`}
             sub={words.complete ? '已完成' : `進度 ${words.answered} / ${words.total}`}
             onClick={onOpenWords}
+          />
+        )}
+        {planTasks.length > 0 && (
+          <Row
+            done={planDone === planTasks.length}
+            icon={null}
+            title={`多益菜單 ${planDone} / ${planTasks.length}`}
+            sub={
+              planTasks
+                .filter(t => !plan.isDone(t))
+                .map(t => `${TASKS[t.kind].label.replace(/^(閱讀|聽力) /, '')} ${t.amount} ${TASKS[t.kind].unit}`)
+                .join('、') || '今天的菜單完成了'
+            }
+            onClick={() => onPractice('plan')}
           />
         )}
         <Row

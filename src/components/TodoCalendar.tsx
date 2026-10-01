@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Bell, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { QUADRANTS, TAG_NAMES_KEY, quadrantOf, tagOf } from '../data/todos'
+import { Bell, Check, ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react'
+import { QUADRANTS, TAG_NAMES_KEY, quadrantOf, tagOf, upcomingDates } from '../data/todos'
 import type { TagNames, Todo } from '../data/todos'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { addDaysKey, fromDateKey, toDateKey } from '../utils/date'
@@ -43,6 +43,7 @@ function DaySheet({
   onEdit,
   onCreate,
   onClose,
+  original,
 }: {
   date: string
   items: Todo[]
@@ -51,6 +52,7 @@ function DaySheet({
   onEdit: (todo: Todo) => void
   onCreate: () => void
   onClose: () => void
+  original: (id: string) => Todo | undefined
 }) {
   const d = fromDateKey(date)
   return (
@@ -86,7 +88,7 @@ function DaySheet({
                 <li key={t.id} className="flex items-center gap-3 py-2">
                   <span className="w-10 shrink-0 text-right text-xs text-muted tabular-nums">{t.dueTime ?? '全天'}</span>
                   <span className="w-1 self-stretch rounded-full" style={{ background: tag.hex }} />
-                  <button onClick={() => onEdit(t)} className="min-w-0 flex-1 text-left">
+                  <button onClick={() => onEdit(t.ghostOf ? (original(t.ghostOf) ?? t) : t)} className="min-w-0 flex-1 text-left">
                     <p className={`truncate font-semibold ${t.done ? 'text-faint line-through' : 'text-fg'}`}>
                       {t.text}
                       {t.remind && t.remind !== 'none' && !t.done && <Bell className="ml-1 inline h-3.5 w-3.5 text-faint" />}
@@ -97,13 +99,20 @@ function DaySheet({
                       {QUADRANTS[quadrantOf(t)].label}
                     </p>
                   </button>
-                  <button
-                    onClick={() => onToggle(t.id)}
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${t.done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line'}`}
-                    aria-label={t.done ? '標記為未完成' : '標記為完成'}
-                  >
-                    {t.done && <Check className="h-4 w-4" />}
-                  </button>
+                  {t.ghostOf ? (
+                    // 未來的重複日期只是預覽，要等前一次完成才會真的產生
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center text-faint" title="重複任務">
+                      <Repeat className="h-4 w-4" />
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => onToggle(t.id)}
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${t.done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line'}`}
+                      aria-label={t.done ? '標記為未完成' : '標記為完成'}
+                    >
+                      {t.done && <Check className="h-4 w-4" />}
+                    </button>
+                  )}
                 </li>
               )
             })}
@@ -132,14 +141,6 @@ export default function TodoCalendar({
   const [anchor, setAnchor] = useState(today)
   const [opened, setOpened] = useState<string | null>(null)
 
-  const byDate = new Map<string, Todo[]>()
-  for (const t of todos) {
-    if (!t.dueDate) continue
-    byDate.set(t.dueDate, [...(byDate.get(t.dueDate) ?? []), t])
-  }
-  const dayTodos = (key: string) => (byDate.get(key) ?? []).sort(sortTodos)
-  const undated = todos.filter(t => !t.dueDate && !t.done).length
-
   // 目前畫面顯示的日期
   const start = view === 'month' ? mondayOf(monthStart(anchor)) : view === 'week' ? mondayOf(anchor) : anchor
   const count =
@@ -152,6 +153,17 @@ export default function TodoCalendar({
       : 7
   const keys = Array.from({ length: count }, (_, i) => addDaysKey(start, i))
 
+  const byDate = new Map<string, Todo[]>()
+  const put = (key: string, t: Todo) => byDate.set(key, [...(byDate.get(key) ?? []), t])
+  for (const t of todos) {
+    if (!t.dueDate) continue
+    put(t.dueDate, t)
+    // 重複任務在未來日期顯示預覽
+    for (const date of upcomingDates(t, keys[0], keys[keys.length - 1])) put(date, { ...t, id: `${t.id}@${date}`, dueDate: date, ghostOf: t.id })
+  }
+  const dayTodos = (key: string) => (byDate.get(key) ?? []).sort(sortTodos)
+  const undated = todos.filter(t => !t.dueDate && !t.done).length
+
   const shift = (n: number) => setAnchor(a => (view === 'month' ? addMonths(a, n) : addDaysKey(a, n * 7)))
   const title =
     view === 'month' ? `${fromDateKey(anchor).getFullYear()} 年 ${fromDateKey(anchor).getMonth() + 1} 月` : `${dayLabel(keys[0])} – ${dayLabel(keys[6])}`
@@ -161,8 +173,8 @@ export default function TodoCalendar({
     return (
       <span
         key={t.id}
-        className={`block truncate rounded border-l-2 ${size === 'sm' ? 'px-0.5 text-[10px] leading-tight' : 'px-2 py-1 text-sm'} ${t.done ? 'text-faint line-through' : 'text-fg'}`}
-        style={{ background: `${tag.hex}${t.done ? '14' : '2e'}`, borderColor: tag.hex }}
+        className={`block truncate rounded border-l-2 ${size === 'sm' ? 'px-0.5 text-[10px] leading-tight' : 'px-2 py-1 text-sm'} ${t.done ? 'text-faint line-through' : 'text-fg'} ${t.ghostOf ? 'border-dashed opacity-60' : ''}`}
+        style={{ background: `${tag.hex}${t.done || t.ghostOf ? '14' : '2e'}`, borderColor: tag.hex }}
       >
         {size === 'md' && t.dueTime && <span className="mr-1 font-semibold tabular-nums">{t.dueTime}</span>}
         {t.text}
@@ -259,6 +271,7 @@ export default function TodoCalendar({
           onEdit={onEdit}
           onCreate={() => onCreate(opened)}
           onClose={() => setOpened(null)}
+          original={id => todos.find(t => t.id === id)}
         />
       )}
     </div>

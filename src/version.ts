@@ -4,6 +4,11 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.4.0': [
+    '新增「多益菜單」：依目標分數與練習強度排一週的練習，做完自動打勾，首頁今日任務也看得到',
+    '待辦可以設定重複：每天、每週、隔週、每月，完成後自動排好下一次，月曆會顯示之後的日期',
+    '有新版時會自動更新並重新載入，不用再手動把 App 關掉重開',
+  ],
   '1.3.0': [
     '刷題中切到別頁或 App 被關掉，回來會接著寫，不會回到設定頁',
     '運動、讀書計時照實際時間記錄（精確到秒），不再一律算 1 分鐘',

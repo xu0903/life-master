@@ -8,6 +8,7 @@ import { DISPUTED_KEY, QUESTION_TYPES, buildQuiz, isClozeCorrect, meaningOf, pic
 import type { Question, QuestionType } from '../data/practice'
 import { TOEIC_WORDS, WORD_INFO, lookupWord, nextStat } from '../data/toeicWords'
 import type { WordStat } from '../data/toeicWords'
+import { logStudy } from '../data/studyLog'
 import { useCards } from '../hooks/useCards'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { needsVocab, sourceLabel, vocabPool } from '../data/vocab'
@@ -200,6 +201,7 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
       if (!correct) ensureCard(q.card)
     }
     if (autoSpeak !== 'off' && isEnglish(q.card.question)) speak(q.card.question, accent)
+    logStudy('practice')
     if (correct && autoNext) advanceTimer.current = window.setTimeout(next, 900)
   }
 

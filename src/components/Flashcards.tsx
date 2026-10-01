@@ -9,6 +9,7 @@ import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
 import Practice from './Practice'
 import Reading from './Reading'
+import StudyPlan from './StudyPlan'
 import { CARD_FILTER_KEY } from '../data/flashcards'
 import type { Card } from '../data/flashcards'
 import { MAX_BOX, TOEIC_WORDS, WORD_INFO, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
@@ -21,7 +22,7 @@ import { useVocabReady, useWordLevel, useWordStats } from '../hooks/useDailyWord
 import { newId, toDateKey } from '../utils/date'
 
 /** 學習分頁目前的模式（首頁「去練習」也會切換它） */
-export type LearnMode = 'flip' | 'practice' | 'reading' | 'listening' | 'grammar' | 'dict'
+export type LearnMode = 'plan' | 'flip' | 'practice' | 'reading' | 'listening' | 'grammar' | 'dict'
 export const LEARN_MODE_KEY = 'lifemaster.learnMode'
 
 /** 'all' | 'fav' | 'wrong' | 'toeic' | 'custom' | 'deck:<id>' | 'bank' | 'bank:<主題>' */
@@ -161,6 +162,7 @@ export default function Flashcards() {
     <div className="flex rounded-2xl bg-surface p-1 shadow-sm">
       {(
         [
+          ['plan', '菜單'],
           ['flip', '翻卡'],
           ['practice', '刷題'],
           ['reading', '閱讀'],
@@ -181,6 +183,15 @@ export default function Flashcards() {
       ))}
     </div>
   )
+
+  if (mode === 'plan') {
+    return (
+      <div className="space-y-4">
+        {modeSwitch}
+        <StudyPlan onOpen={m => setMode(m as LearnMode)} />
+      </div>
+    )
+  }
 
   if (mode === 'dict') {
     return (

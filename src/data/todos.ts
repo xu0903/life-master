@@ -24,6 +24,60 @@ export interface Todo {
   notifiedAt?: string
   /** 備註 */
   note?: string
+  /** 重複：完成這一次後自動產生下一次 */
+  repeat?: Repeat
+  /** 每月重複的日期（避免 1/31 → 2/28 → 3/28 越跑越前面） */
+  repeatDay?: number
+  /** 完成時自動產生的下一次任務 id；取消完成時一起收回 */
+  spawnedId?: string
+  /** 只用在月曆顯示：未來重複日期的預覽，指向原本的任務 */
+  ghostOf?: string
+}
+
+export type Repeat = 'daily' | 'weekly' | 'biweekly' | 'monthly'
+export const REPEAT_OPTIONS: { value: Repeat | 'none'; label: string }[] = [
+  { value: 'none', label: '不重複' },
+  { value: 'daily', label: '每天' },
+  { value: 'weekly', label: '每週' },
+  { value: 'biweekly', label: '隔週' },
+  { value: 'monthly', label: '每月' },
+]
+export const repeatLabel = (r: Repeat) => REPEAT_OPTIONS.find(o => o.value === r)?.label ?? ''
+
+function shiftDate(key: string, repeat: Repeat, monthDay: number): string {
+  const [y, m, d] = key.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  if (repeat === 'daily') date.setDate(d + 1)
+  else if (repeat === 'weekly') date.setDate(d + 7)
+  else if (repeat === 'biweekly') date.setDate(d + 14)
+  else {
+    // 下個月的同一天；那個月沒有這一天就用月底
+    const last = new Date(y, m + 1, 0).getDate()
+    date.setFullYear(y, m, Math.min(monthDay, last))
+  }
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+const monthDayOf = (todo: Todo) => todo.repeatDay ?? Number(todo.dueDate?.slice(8) ?? 1)
+
+/** 完成重複任務後，下一次的截止日：至少往後一期，而且不會早於今天（逾期很久才完成時直接排到今天以後） */
+export function nextOccurrence(todo: Todo, today: string): string {
+  let next = shiftDate(todo.dueDate!, todo.repeat!, monthDayOf(todo))
+  while (next < today) next = shiftDate(next, todo.repeat!, monthDayOf(todo))
+  return next
+}
+
+/** 月曆預覽：這個重複任務在 [from, to] 之間、這一次之後的日期 */
+export function upcomingDates(todo: Todo, from: string, to: string): string[] {
+  if (!todo.repeat || !todo.dueDate || todo.done) return []
+  const dates: string[] = []
+  let next = shiftDate(todo.dueDate, todo.repeat, monthDayOf(todo))
+  while (next <= to && dates.length < 62) {
+    if (next >= from) dates.push(next)
+    next = shiftDate(next, todo.repeat, monthDayOf(todo))
+  }
+  return dates
 }
 
 export const TODOS_KEY = 'lifemaster.todos'

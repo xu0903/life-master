@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Bell, BellOff, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Flag, NotebookPen, Pencil, Sun, Tag, Trash2, X } from 'lucide-react'
-import { DEFAULT_REMIND, QUADRANTS, REMIND_OPTIONS, TAG_COLORS, TAG_NAMES_KEY, defaultRemindFor, quadrantFor, quadrantOf, tagOf } from '../data/todos'
-import type { RemindOption, TagNames, Todo } from '../data/todos'
+import { Bell, BellOff, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Flag, NotebookPen, Pencil, Repeat, Sun, Tag, Trash2, X } from 'lucide-react'
+import {
+  DEFAULT_REMIND,
+  QUADRANTS,
+  REMIND_OPTIONS,
+  REPEAT_OPTIONS,
+  TAG_COLORS,
+  TAG_NAMES_KEY,
+  defaultRemindFor,
+  quadrantFor,
+  quadrantOf,
+  tagOf,
+} from '../data/todos'
+import type { RemindOption, Repeat as RepeatRule, TagNames, Todo } from '../data/todos'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { fromDateKey } from '../utils/date'
 import { downloadIcs, notificationPermission } from '../utils/reminders'
@@ -153,7 +164,7 @@ export default function TodoSheet({
   const remindOptions = REMIND_OPTIONS.filter(o => !o.needsTime || draft.dueTime)
 
   const setDate = (dueDate: string) => {
-    if (!dueDate) return set({ dueDate: undefined, dueTime: undefined, remind: undefined })
+    if (!dueDate) return set({ dueDate: undefined, dueTime: undefined, remind: undefined, repeat: undefined, repeatDay: undefined })
     set({ dueDate, remind: hasDate ? draft.remind : defaultRemindFor(dueDate, draft.dueTime) })
   }
   const setAllDay = (on: boolean) => {
@@ -264,6 +275,23 @@ export default function TodoSheet({
                 ))}
               </select>
             </Row>
+            <Row icon={<Repeat className="h-5 w-5" />} label="重複">
+              <select
+                value={draft.repeat ?? 'none'}
+                onChange={e => {
+                  const repeat = e.target.value === 'none' ? undefined : (e.target.value as RepeatRule)
+                  set({ repeat, repeatDay: repeat === 'monthly' ? Number(draft.dueDate!.slice(8)) : undefined })
+                }}
+                className={fieldBase}
+              >
+                {REPEAT_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            {draft.repeat && <p className="px-1 pt-2 text-xs text-faint">完成這一次後，會自動排好下一次的任務</p>}
             {remind !== 'none' && notificationPermission() !== 'granted' && (
               <p className="px-1 pt-2 text-xs text-amber-700 dark:text-amber-400">還沒開通知權限，提醒只會在 App 打開時顯示；到「設定 → 通知」開啟。</p>
             )}
@@ -294,7 +322,7 @@ export default function TodoSheet({
             {onDelete && (
               <button
                 onClick={() => {
-                  if (!confirm('確定刪除這個任務？')) return
+                  if (!confirm(todo.repeat ? '確定刪除？這是重複任務，刪除後不會再產生下一次。' : '確定刪除這個任務？')) return
                   onDelete()
                   onClose()
                 }}
