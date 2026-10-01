@@ -5,6 +5,7 @@ import { LISTENING_HISTORY_KEY, LISTENING_PARTS, LISTENING_TESTS } from '../data
 import type { ListeningGroup, ListeningPart, ListeningRecord } from '../data/listening'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { toDateKey } from '../utils/date'
+import { playRecorded, stopRecorded } from '../utils/audio'
 import { canSpeak, englishVoices, speakLines, stopSpeaking, voiceScore } from '../utils/speech'
 import type { VoiceChoice } from '../utils/speech'
 
@@ -25,17 +26,25 @@ function Player({ group, rate, voices }: { group: ListeningGroup; rate: number; 
   const [plays, setPlays] = useState(0)
 
   // 換題或離開時停止播放
-  useEffect(() => stopSpeaking, [group.id])
+  useEffect(
+    () => () => {
+      stopRecorded()
+      stopSpeaking()
+    },
+    [group.id],
+  )
 
   const toggle = () => {
     if (playing) {
+      stopRecorded()
       stopSpeaking()
       setPlaying(false)
       return
     }
     setPlaying(true)
     setPlays(n => n + 1)
-    speakLines(group.audio, rate, () => setPlaying(false), voices)
+    // 優先播預錄的真人化語音；某一句的檔案不存在時，那一句改用裝置語音念
+    playRecorded(group.audio, rate / 0.95, line => new Promise(resolve => speakLines([line], rate, resolve, voices)), () => setPlaying(false))
   }
 
   return (
