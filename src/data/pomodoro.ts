@@ -9,6 +9,8 @@ export interface PomodoroState {
   left: number
   /** 每天完成幾個番茄鐘 */
   log: Record<string, number>
+  /** 專注結束後把分鐘數記到這個「時間」習慣（例如運動、讀書） */
+  habitId?: string
 }
 
 export const POMODORO_INITIAL: PomodoroState = { mode: 'focus', endAt: null, left: POMODORO_MINUTES.focus * 60, log: {} }

@@ -28,3 +28,6 @@ supabase/.temp
 
 # 官方字表 PDF 與產生單字時的暫存（字表著作權屬原單位，不放進版本庫）
 wordlists/
+
+# 私人筆記（安全稽核等，不放進公開 repo）
+private/

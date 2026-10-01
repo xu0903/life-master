@@ -1,16 +1,30 @@
 import { useEffect } from 'react'
 import { useLocalStorage } from './useLocalStorage'
-import { DEFAULT_HABITS, HABITS_KEY, VOCAB_HABIT } from '../data/habits'
+import { DEFAULT_HABITS, HABITS_KEY, VOCAB_HABIT, habitGoal } from '../data/habits'
 import type { Habit, HabitSettings } from '../data/habits'
 import { newId } from '../utils/date'
 
 export function useHabits() {
   const [habits, setHabits] = useLocalStorage<Habit[]>(HABITS_KEY, DEFAULT_HABITS)
 
+  const [migrated, setMigrated] = useLocalStorage('lifemaster.habitKindsV2', false)
+
   // 舊資料沒有「背單字」習慣時補上
   useEffect(() => {
     setHabits(prev => (prev.some(h => h.id === VOCAB_HABIT.id) ? prev : [...prev, VOCAB_HABIT]))
   }, [setHabits])
+
+  // 內建的喝水、運動、讀書改成記錄毫升與分鐘（只做一次；自己改過設定的不動）
+  useEffect(() => {
+    if (migrated) return
+    setMigrated(true)
+    const upgrade: Record<string, Partial<Habit>> = {
+      water: { kind: 'water', bottleMl: 500, target: 2000 },
+      exercise: { kind: 'duration', target: 30 },
+      read: { kind: 'duration', target: 30 },
+    }
+    setHabits(prev => prev.map(h => (upgrade[h.id] && !h.kind && !h.target ? { ...h, ...upgrade[h.id] } : h)))
+  }, [migrated, setMigrated, setHabits])
 
   const update = (id: string, patch: Partial<Habit>) =>
     setHabits(prev => prev.map(h => (h.id === id ? { ...h, ...patch } : h)))
@@ -34,15 +48,26 @@ export function useHabits() {
       ),
     )
 
-  /** 計量習慣加減次數；達到每日目標時自動打卡，低於目標時取消 */
-  const addCount = (id: string, date: string, delta: number) =>
+  /** 計量習慣加減數量（次數、毫升、分鐘、組數）；達到每日目標時自動打卡，低於目標時取消 */
+  const addAmount = (id: string, date: string, delta: number) =>
     setHabits(prev =>
       prev.map(h => {
         if (h.id !== id) return h
-        const count = Math.max(0, (h.counts?.[date] ?? 0) + delta)
-        const done = count >= (h.target ?? 1)
+        const amount = Math.max(0, Math.round(((h.counts?.[date] ?? 0) + delta) * 100) / 100)
+        const done = amount >= habitGoal(h)
         const others = h.completedDates.filter(d => d !== date)
-        return { ...h, counts: { ...h.counts, [date]: count }, completedDates: done ? [...others, date] : others }
+        return { ...h, counts: { ...h.counts, [date]: amount }, completedDates: done ? [...others, date] : others }
+      }),
+    )
+
+  /** 自動同步的組數習慣：直接設定當天的組數 */
+  const setAmount = (id: string, date: string, amount: number) =>
+    setHabits(prev =>
+      prev.map(h => {
+        if (h.id !== id || h.counts?.[date] === amount) return h
+        const done = amount >= habitGoal(h)
+        const others = h.completedDates.filter(d => d !== date)
+        return { ...h, counts: { ...h.counts, [date]: amount }, completedDates: done ? [...others, date] : others }
       }),
     )
 
@@ -60,5 +85,5 @@ export function useHabits() {
       return next
     })
 
-  return { habits, update, toggleDate, markDone, addCount, add, remove, move }
+  return { habits, update, toggleDate, markDone, addAmount, setAmount, add, remove, move }
 }

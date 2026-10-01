@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Trash2, Upload, Volume2, X } from 'lucide-react'
-import { HABIT_COLORS, HABIT_ICONS, VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
-import type { Habit, HabitSettings } from '../data/habits'
+import { ACTIVITY_LINKS, HABIT_COLORS, HABIT_ICONS, HABIT_KINDS, VOCAB_HABIT, habitColor, habitIcon, habitKind, habitSummary } from '../data/habits'
+import type { ActivityLink, Habit, HabitKind, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useVocabReady, useWordLevel, useWordSource } from '../hooks/useDailyWords'
 import { CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntries } from '../data/vocab'
 import { useHabits } from '../hooks/useHabits'
+import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
 import Diagnostics from './Diagnostics'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -100,31 +101,74 @@ function HabitEditor({
   onSave: (settings: HabitSettings) => void
   onCancel: () => void
 }) {
+  const isVocab = initial?.id === VOCAB_HABIT.id
+  const [kind, setKind] = useState<HabitKind>(initial ? habitKind(initial) : 'check')
   const [weekly, setWeekly] = useState(initial?.weeklyTarget ?? 0)
   const [target, setTarget] = useState(initial?.target ? String(initial.target) : '')
   const [unit, setUnit] = useState(initial?.unit ?? '')
+  const [step, setStep] = useState(initial?.step ?? 1)
+  const [bottle, setBottle] = useState(String(initial?.bottleMl ?? 500))
+  const [perSet, setPerSet] = useState(String(initial?.perSet ?? ''))
+  const [link, setLink] = useState<ActivityLink | ''>(initial?.link ?? '')
   const [remindTime, setRemindTime] = useState(initial?.remindTime ?? '')
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'health')
   const [color, setColor] = useState(initial ? Object.keys(HABIT_COLORS).find(k => HABIT_COLORS[k] === habitColor(initial)) ?? 'indigo' : 'indigo')
-  const isVocab = initial?.id === VOCAB_HABIT.id
+
+  const num = (v: string, min: number, max: number, fallback: number) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n >= min ? Math.min(max, n) : fallback
+  }
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    const count = Math.min(99, Math.floor(Number(target)))
-    onSave({
+    const base: HabitSettings = {
       name: name.trim(),
       icon,
       color,
-      weeklyTarget: !isVocab && weekly > 0 ? weekly : undefined,
-      target: !isVocab && count > 1 ? count : undefined,
-      unit: !isVocab && count > 1 && unit.trim() ? unit.trim() : undefined,
       remindTime: remindTime || undefined,
+      weeklyTarget: !isVocab && weekly > 0 ? weekly : undefined,
+      kind: undefined,
+      target: undefined,
+      unit: undefined,
+      step: undefined,
+      bottleMl: undefined,
+      perSet: undefined,
+      link: undefined,
+    }
+    if (isVocab || kind === 'check') return onSave({ ...base, kind: isVocab ? undefined : 'check' })
+    if (kind === 'count') return onSave({ ...base, kind, target: num(target, 0.5, 999, 2), unit: unit.trim() || undefined, step })
+    if (kind === 'water') return onSave({ ...base, kind, bottleMl: num(bottle, 50, 5000, 500), target: num(target, 100, 10000, 2000) })
+    if (kind === 'duration') return onSave({ ...base, kind, target: num(target, 1, 1440, 30) })
+    const linkInfo = ACTIVITY_LINKS.find(l => l.value === link)
+    onSave({
+      ...base,
+      kind,
+      perSet: num(perSet, 1, 9999, 1),
+      target: num(target, 1, 99, 3),
+      unit: unit.trim() || linkInfo?.unit || undefined,
+      link: link || undefined,
     })
   }
 
   const fieldClass = 'rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-fg outline-none focus:border-primary'
+  const numberField = (value: string, set: (v: string) => void, placeholder: string, width = 'w-20') => (
+    <input
+      type="number"
+      inputMode="decimal"
+      value={value}
+      onChange={e => set(e.target.value)}
+      placeholder={placeholder}
+      className={`${fieldClass} ${width} text-center`}
+    />
+  )
+  const row = (label: string, children: ReactNode) => (
+    <label className="flex items-center justify-between gap-2">
+      {label}
+      <span className="flex items-center gap-1.5">{children}</span>
+    </label>
+  )
 
   return (
     <form onSubmit={submit} className="space-y-3 rounded-xl bg-surface-2 p-3">
@@ -132,7 +176,7 @@ function HabitEditor({
         autoFocus
         value={name}
         onChange={e => setName(e.target.value)}
-        placeholder="習慣名稱，例如：早睡、冥想"
+        placeholder="習慣名稱，例如：早睡、伏地挺身、閱讀練習"
         maxLength={12}
         className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-base text-fg outline-none placeholder:text-faint focus:border-primary"
       />
@@ -166,56 +210,108 @@ function HabitEditor({
           />
         ))}
       </div>
+
+      {!isVocab && (
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-faint">記錄方式</p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {HABIT_KINDS.map(k => (
+              <button
+                key={k.value}
+                type="button"
+                onClick={() => setKind(k.value)}
+                className={`rounded-lg py-1.5 text-sm transition ${kind === k.value ? 'bg-primary font-semibold text-on-primary' : 'bg-surface text-muted'}`}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-faint">{HABIT_KINDS.find(k => k.value === kind)?.desc}</p>
+        </div>
+      )}
+
       <div className="space-y-2 text-sm text-muted">
-        {!isVocab && (
+        {!isVocab && kind === 'count' && (
           <>
-            <label className="flex items-center justify-between gap-2">
-              頻率
-              <select value={weekly} onChange={e => setWeekly(Number(e.target.value))} className={fieldClass}>
-                <option value={0}>每天</option>
-                {[1, 2, 3, 4, 5, 6].map(n => (
-                  <option key={n} value={n}>
-                    每週 {n} 次
+            {row('每日目標', <>{numberField(target, setTarget, '2', 'w-16')}<input value={unit} onChange={e => setUnit(e.target.value)} maxLength={4} placeholder="單位" className={`${fieldClass} w-16 text-center`} /></>)}
+            {row(
+              '每按一次',
+              <select value={step} onChange={e => setStep(Number(e.target.value))} className={fieldClass}>
+                <option value={1}>+1</option>
+                <option value={0.5}>+0.5</option>
+              </select>,
+            )}
+          </>
+        )}
+        {!isVocab && kind === 'water' && (
+          <>
+            {row('水壺 / 杯子容量', <>{numberField(bottle, setBottle, '500')} ml</>)}
+            {row('每日目標', <>{numberField(target, setTarget, '2000')} ml</>)}
+            <p className="text-xs text-faint">首頁可以按「+1 瓶」或「+½」，自動換算成毫升</p>
+          </>
+        )}
+        {!isVocab && kind === 'duration' && (
+          <>
+            {row('每日目標', <>{numberField(target, setTarget, '30')} 分鐘</>)}
+            <p className="text-xs text-faint">首頁可以按「計時」開始 / 結束，也能在番茄鐘選這個習慣，專注完自動記入</p>
+          </>
+        )}
+        {!isVocab && kind === 'sets' && (
+          <>
+            {row(
+              '自動計算來源',
+              <select value={link} onChange={e => setLink(e.target.value as ActivityLink | '')} className={fieldClass}>
+                <option value="">不自動（自己按）</option>
+                {ACTIVITY_LINKS.map(l => (
+                  <option key={l.value} value={l.value}>
+                    App 內的{l.label}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="flex items-center justify-between gap-2">
-              每日目標次數
-              <span className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={99}
-                  value={target}
-                  onChange={e => setTarget(e.target.value)}
-                  placeholder="1"
-                  className={`${fieldClass} w-16 text-center`}
-                />
+              </select>,
+            )}
+            {row(
+              '每組',
+              <>
+                {numberField(perSet, setPerSet, link ? '2' : '15', 'w-16')}
                 <input
                   value={unit}
                   onChange={e => setUnit(e.target.value)}
                   maxLength={4}
-                  placeholder="單位"
+                  placeholder={ACTIVITY_LINKS.find(l => l.value === link)?.unit ?? '下'}
                   className={`${fieldClass} w-16 text-center`}
                 />
-              </span>
-            </label>
+              </>,
+            )}
+            {row('每日組數', <>{numberField(target, setTarget, '3', 'w-16')} 組</>)}
+            <p className="text-xs text-faint">
+              {link ? '例如每組 2 題 × 2 組：今天在 App 裡寫完 4 題就自動完成' : '例如伏地挺身每組 15 下 × 3 組，做完一組按一下'}
+            </p>
           </>
         )}
-        <label className="flex items-center justify-between gap-2">
-          每天提醒時間
-          <span className="flex items-center gap-1.5">
+        {!isVocab &&
+          row(
+            '頻率',
+            <select value={weekly} onChange={e => setWeekly(Number(e.target.value))} className={fieldClass}>
+              <option value={0}>每天</option>
+              {[1, 2, 3, 4, 5, 6].map(n => (
+                <option key={n} value={n}>
+                  每週 {n} 次
+                </option>
+              ))}
+            </select>,
+          )}
+        {row(
+          '每天提醒時間',
+          <>
             {remindTime && (
               <button type="button" onClick={() => setRemindTime('')} className="text-xs text-faint underline">
                 清除
               </button>
             )}
             <input type="time" value={remindTime} onChange={e => setRemindTime(e.target.value)} className={fieldClass} />
-          </span>
-        </label>
-        {remindTime && !isPushEnabled() && <p className="text-xs text-amber-600 dark:text-amber-400">要先在下方「待辦通知」開啟通知，提醒才會送出</p>}
+          </>,
+        )}
+        {remindTime && !isPushEnabled() && <p className="text-xs text-amber-600 dark:text-amber-400">要先在「通知」開啟通知，提醒才會送出</p>}
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm text-muted">
@@ -258,13 +354,9 @@ function HabitManager() {
             <span className="min-w-0 flex-1 truncate text-sm text-fg">
               {h.name}
               {h.id === VOCAB_HABIT.id && <span className="ml-1 text-xs text-faint">（自動打卡）</span>}
-              {h.weeklyTarget && <span className="ml-1 text-xs text-faint">每週 {h.weeklyTarget} 次</span>}
-              {h.target && (
-                <span className="ml-1 text-xs text-faint">
-                  每日 {h.target}
-                  {h.unit}
-                </span>
-              )}
+              <span className="block text-xs text-faint">
+                {[habitSummary(h), h.weeklyTarget ? `每週 ${h.weeklyTarget} 次` : ''].filter(Boolean).join('・')}
+              </span>
             </span>
             <button onClick={() => move(h.id, -1)} disabled={i === 0} className="p-1.5 text-faint disabled:opacity-30" aria-label="上移">
               <ArrowUp className="h-4 w-4" />
@@ -437,21 +529,61 @@ function WordSourcePicker() {
   )
 }
 
-function ExamDate() {
-  const [examDate, setExamDate] = useLocalStorage('lifemaster.examDate', '')
+function ExamManager() {
+  const { exams, add, remove } = useExams()
+  const [name, setName] = useState('')
+  const [date, setDate] = useState('')
+  const today = toDateKey()
+  const sorted = [...exams].sort((a, b) => a.date.localeCompare(b.date))
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || !date) return
+    add(name.trim().slice(0, 12), date)
+    setName('')
+    setDate('')
+  }
+
   return (
-    <div className="flex items-center gap-3">
-      <input
-        type="date"
-        value={examDate}
-        onChange={e => setExamDate(e.target.value)}
-        className="flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-base text-fg outline-none focus:border-primary"
-      />
-      {examDate && (
-        <button onClick={() => setExamDate('')} className="text-sm text-faint underline">
-          清除
-        </button>
+    <div className="space-y-3">
+      {sorted.length > 0 && (
+        <ul className="space-y-1.5">
+          {sorted.map(e => {
+            const days = diffDays(today, e.date)
+            return (
+              <li key={e.id} className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate font-medium text-fg">{e.name}</span>
+                <span className="text-xs text-muted tabular-nums">{e.date}</span>
+                <span className={`w-16 text-right text-xs tabular-nums ${days < 0 ? 'text-faint' : 'text-primary-ink'}`}>
+                  {days < 0 ? '已結束' : days === 0 ? '今天' : `${days} 天後`}
+                </span>
+                <button onClick={() => remove(e.id)} className="p-1 text-faint hover:text-rose-500" aria-label="刪除考試">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
       )}
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          maxLength={12}
+          placeholder="考試名稱，例如：學測、英檢中級、期中考"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-sm text-fg outline-none placeholder:text-faint focus:border-primary"
+        />
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          className="w-36 rounded-xl border border-line bg-surface px-2 py-2 text-sm text-fg outline-none focus:border-primary"
+        />
+        <button type="submit" disabled={!name.trim() || !date} className="rounded-xl bg-primary px-3 text-on-primary disabled:opacity-40" aria-label="新增考試">
+          <Plus className="h-4 w-4" />
+        </button>
+      </form>
+      <p className="text-xs text-faint">每天要練多少，可以到「管理習慣」新增「組數」習慣，例如閱讀 2 題 × 2 組，會依你在 App 裡的練習自動完成</p>
     </div>
   )
 }
@@ -812,8 +944,8 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         <WordSourcePicker />
       </Section>
 
-      <Section title="📅 多益考試日期" desc="設定後會在習慣打卡頁顯示倒數天數">
-        <ExamDate />
+      <Section title="📅 我的考試" desc="可以加好幾個考試，習慣打卡頁會顯示最近三個的倒數天數">
+        <ExamManager />
       </Section>
 
       <Section title="✅ 管理習慣" desc="新增、改名、換圖示顏色、調整順序；也能設定每週次數、每日目標與提醒時間">

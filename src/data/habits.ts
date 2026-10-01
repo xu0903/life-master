@@ -28,18 +28,84 @@ export interface Habit {
   completedDates: string[]
   /** 每週目標次數（1–6）；沒填 = 每天都要做 */
   weeklyTarget?: number
-  /** 每天要做幾次才算完成，例如喝水 8 杯；沒填 = 打卡一次就完成 */
+  /** 打卡方式；舊資料沒有這個欄位：有 target 視為 count，否則 check */
+  kind?: HabitKind
+  /** 每日目標：count = 次數、water = 毫升、duration = 分鐘、sets = 組數 */
   target?: number
-  /** 計量單位，例如「杯」 */
+  /** 計量單位，例如「杯」「下」「題」 */
   unit?: string
-  /** 計量習慣每天做了幾次 */
+  /** count：每按一次加多少（1 或 0.5） */
+  step?: number
+  /** water：水壺 / 杯子容量（毫升） */
+  bottleMl?: number
+  /** sets：每組的數量，例如 15 下、2 題 */
+  perSet?: number
+  /** sets：自動從 App 裡的練習紀錄計算進度 */
+  link?: ActivityLink
+  /** 每天的累計量（count = 次數、water = 毫升、duration = 分鐘、sets = 組數） */
   counts?: Record<string, number>
   /** 每天提醒時間 HH:mm（需開啟背景推播） */
   remindTime?: string
 }
 
+/** 習慣卡上的計時器（運動、讀書等「時間」習慣）；同一時間只會有一個在跑 */
+export const HABIT_TIMER_KEY = 'lifemaster.habitTimer'
+export interface HabitTimer {
+  habitId: string
+  startAt: number
+}
+
+/** 打卡方式 */
+export type HabitKind = 'check' | 'count' | 'water' | 'duration' | 'sets'
+/** 可以自動同步進度的 App 內練習 */
+export type ActivityLink = 'reading' | 'listening' | 'words' | 'grammar'
+
+export const HABIT_KINDS: { value: HabitKind; label: string; desc: string }[] = [
+  { value: 'check', label: '打卡', desc: '做了就打勾' },
+  { value: 'count', label: '次數', desc: '例如：吃水果 2 份' },
+  { value: 'water', label: '喝水', desc: '用水壺容量計算毫升數' },
+  { value: 'duration', label: '時間', desc: '記錄分鐘數，可用計時器或番茄鐘' },
+  { value: 'sets', label: '組數', desc: '例如：伏地挺身 15 下 × 3 組、閱讀 2 題 × 2 組' },
+]
+
+export const ACTIVITY_LINKS: { value: ActivityLink; label: string; unit: string }[] = [
+  { value: 'reading', label: '閱讀題', unit: '題' },
+  { value: 'listening', label: '聽力題', unit: '題' },
+  { value: 'words', label: '每日單字', unit: '個' },
+  { value: 'grammar', label: '文法單元', unit: '單元' },
+]
+
 /** 新增 / 編輯習慣時可以設定的欄位 */
-export type HabitSettings = Pick<Habit, 'name' | 'icon' | 'color' | 'weeklyTarget' | 'target' | 'unit' | 'remindTime'>
+export type HabitSettings = Pick<
+  Habit,
+  'name' | 'icon' | 'color' | 'weeklyTarget' | 'kind' | 'target' | 'unit' | 'step' | 'bottleMl' | 'perSet' | 'link' | 'remindTime'
+>
+
+export function habitKind(h: Habit): HabitKind {
+  return h.kind ?? ((h.target ?? 1) > 1 ? 'count' : 'check')
+}
+
+/** 每日目標量（同 counts 的單位） */
+export function habitGoal(h: Habit): number {
+  const kind = habitKind(h)
+  if (kind === 'water') return h.target ?? 2000
+  if (kind === 'duration') return h.target ?? 30
+  return h.target ?? 1
+}
+
+/** 一行說明，例如「每日 2,000 ml」「15 下 × 3 組」 */
+export function habitSummary(h: Habit): string {
+  const kind = habitKind(h)
+  const goal = habitGoal(h)
+  if (kind === 'water') return `每日 ${goal.toLocaleString()} ml・水壺 ${h.bottleMl ?? 500} ml`
+  if (kind === 'duration') return `每日 ${goal} 分鐘`
+  if (kind === 'sets') {
+    const link = ACTIVITY_LINKS.find(l => l.value === h.link)
+    return `${h.perSet ?? 1} ${h.unit ?? link?.unit ?? '下'} × ${goal} 組${link ? `（自動：${link.label}）` : ''}`
+  }
+  if (kind === 'count') return `每日 ${goal}${h.unit ?? ''}`
+  return ''
+}
 
 /** 這一週完成了幾天 */
 export function weekCount(habit: Habit, date: Date = new Date()): number {

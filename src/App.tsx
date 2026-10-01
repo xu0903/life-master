@@ -12,6 +12,7 @@ import Settings from './components/Settings'
 import WordPopupProvider from './components/WordPopup'
 import { useCloudBackup } from './hooks/useCloudBackup'
 import { useProgressSync } from './hooks/useProgress'
+import { useLocalStorage } from './hooks/useLocalStorage'
 import { useTheme } from './themes'
 
 type TabId = 'habits' | 'todos' | 'flashcards' | 'rooms' | 'stats' | 'settings'
@@ -38,6 +39,7 @@ export default function App() {
   const { themeId, setThemeId } = useTheme()
   useProgressSync()
   useCloudBackup()
+  const [, setLearnMode] = useLocalStorage('lifemaster.learnMode', 'flip')
   const activeLabel = TABS.find(t => t.id === tab)?.label
 
   const today = new Date().toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' })
@@ -59,7 +61,15 @@ export default function App() {
         <ReminderBanner onOpen={() => goTo('todos')} />
 
         <main className="px-4 pt-2">
-          {tab === 'habits' && <Habits onManage={() => goTo('settings')} />}
+          {tab === 'habits' && (
+            <Habits
+              onManage={() => goTo('settings')}
+              onPractice={mode => {
+                setLearnMode(mode)
+                goTo('flashcards')
+              }}
+            />
+          )}
           {tab === 'todos' && <Todos />}
           {tab === 'flashcards' && <Flashcards />}
           {tab === 'rooms' && <Rooms onOpenSettings={() => goTo('settings')} joinCode={joinCode} />}

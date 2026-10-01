@@ -18,11 +18,16 @@ function read<T>(key: string, fallback: T): T {
  */
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [value, setValue] = useState<T>(() => read(key, initialValue))
-  // 掛載時讀到的值：還沒被改過就不寫回去，否則可能是預設值或過時的值，會蓋掉別的元件剛存的資料
+  // 掛載時讀到的值在被改過之前不寫回去，否則可能是預設值或過時的值，會蓋掉別的元件剛存的資料。
+  // 一旦改過就照常寫入，包括改回原本的值（例如計時器從 null → 開始 → 又變回 null）。
   const initial = useRef(value)
+  const changed = useRef(false)
 
   useEffect(() => {
-    if (value === initial.current) return
+    if (!changed.current) {
+      if (value === initial.current) return
+      changed.current = true
+    }
     try {
       const serialized = JSON.stringify(value)
       if (localStorage.getItem(key) === serialized) return

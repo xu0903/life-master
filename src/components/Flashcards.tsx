@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Pencil, Plus, SkipForward, Star, Trash2 } from 'lucide-react'
 import CardActions from './CardActions'
 import FlipCard from './FlipCard'
+import Dictionary from './Dictionary'
 import Grammar from './Grammar'
 import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
@@ -12,8 +13,13 @@ import type { Card } from '../data/flashcards'
 import { MAX_BOX, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
 import type { Grade } from '../data/toeicWords'
 import { useCards, useDecks } from '../hooks/useCards'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useWordStats } from '../hooks/useDailyWords'
 import { newId, toDateKey } from '../utils/date'
+
+/** 學習分頁目前的模式（首頁「去練習」也會切換它） */
+export type LearnMode = 'flip' | 'practice' | 'reading' | 'listening' | 'grammar' | 'dict'
+export const LEARN_MODE_KEY = 'lifemaster.learnMode'
 
 /** 'all' | 'fav' | 'wrong' | 'toeic' | 'custom' | 'deck:<id>' */
 type Filter = string
@@ -38,13 +44,7 @@ export default function Flashcards() {
   const [stats, setStats] = useWordStats()
   const today = toDateKey()
   // 閱讀測驗寫到一半離開的話，回來直接接著寫
-  const [mode, setMode] = useState<'flip' | 'practice' | 'reading' | 'listening' | 'grammar'>(() => {
-    try {
-      return (localStorage.getItem('lifemaster.readingSession') ?? 'null') !== 'null' ? 'reading' : 'flip'
-    } catch {
-      return 'flip'
-    }
-  })
+  const [mode, setMode] = useLocalStorage<LearnMode>(LEARN_MODE_KEY, 'flip')
   const [filter, setFilter] = useState<Filter>('all')
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [flipped, setFlipped] = useState(false)
@@ -155,6 +155,7 @@ export default function Flashcards() {
           ['reading', '閱讀'],
           ['listening', '聽力'],
           ['grammar', '文法'],
+          ['dict', '字典'],
         ] as const
       ).map(([m, label]) => (
         <button
@@ -169,6 +170,15 @@ export default function Flashcards() {
       ))}
     </div>
   )
+
+  if (mode === 'dict') {
+    return (
+      <div className="space-y-4">
+        {modeSwitch}
+        <Dictionary />
+      </div>
+    )
+  }
 
   if (mode === 'grammar') {
     return (

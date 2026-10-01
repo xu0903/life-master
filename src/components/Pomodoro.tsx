@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Pause, Play, RotateCcw, Timer } from 'lucide-react'
 import { POMODORO_INITIAL, POMODORO_KEY, POMODORO_MINUTES } from '../data/pomodoro'
 import type { PomodoroState } from '../data/pomodoro'
+import { habitKind } from '../data/habits'
+import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { toDateKey } from '../utils/date'
 import { showNotification } from '../utils/reminders'
@@ -12,6 +14,9 @@ const MINUTES = POMODORO_MINUTES
 export default function Pomodoro() {
   const [state, setState] = useLocalStorage<PomodoroState>(POMODORO_KEY, POMODORO_INITIAL)
   const [now, setNow] = useState(Date.now)
+  const { habits, addAmount } = useHabits()
+  const timeHabits = habits.filter(h => habitKind(h) === 'duration')
+  const linked = timeHabits.find(h => h.id === state.habitId)
   const running = state.endAt !== null
   const left = state.endAt !== null ? Math.max(0, Math.ceil((state.endAt - now) / 1000)) : state.left
   const today = toDateKey()
@@ -29,12 +34,15 @@ export default function Pomodoro() {
     const focus = state.mode === 'focus'
     void showNotification(focus ? '番茄鐘時間到' : '休息結束', focus ? '休息 5 分鐘吧' : '開始下一個番茄鐘', 'pomodoro')
     const next = focus ? 'break' : 'focus'
+    if (focus && linked) addAmount(linked.id, today, MINUTES.focus)
     setState(s => ({
+      ...s,
       mode: next,
       endAt: null,
       left: MINUTES[next] * 60,
       log: focus ? { ...s.log, [today]: (s.log[today] ?? 0) + 1 } : s.log,
     }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在時間到的那一刻執行一次
   }, [running, left, state.mode, today, setState])
 
   const toggle = () => {
@@ -47,7 +55,8 @@ export default function Pomodoro() {
   const touched = running || left !== total || state.mode === 'break'
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-sm">
+    <div className="rounded-2xl bg-surface p-4 shadow-sm">
+    <div className="flex items-center gap-3">
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${state.mode === 'focus' ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-500'}`}>
         <Timer className="h-6 w-6" />
       </div>
@@ -77,6 +86,21 @@ export default function Pomodoro() {
       >
         {running ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
       </button>
+    </div>
+    {timeHabits.length > 0 && (
+      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto text-xs">
+        <span className="shrink-0 text-faint">專注完記到：</span>
+        {[{ id: '', name: '不記錄' }, ...timeHabits].map(h => (
+          <button
+            key={h.id}
+            onClick={() => setState(s => ({ ...s, habitId: h.id || undefined }))}
+            className={`shrink-0 rounded-full px-2.5 py-1 ${(state.habitId ?? '') === h.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
+          >
+            {h.name}
+          </button>
+        ))}
+      </div>
+    )}
     </div>
   )
 }
