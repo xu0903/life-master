@@ -1,13 +1,18 @@
 import { Check, X } from 'lucide-react'
 import type { ReadingQuestion } from '../data/reading'
-import { lookupInflected } from '../data/toeicWords'
+import { TOEIC_WORDS, lookupInflected } from '../data/toeicWords'
+import { useDecks } from '../hooks/useCards'
 import { useWordPopup } from '../hooks/useWordPopup'
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
-/** 英文文字：題庫裡有的單字加上虛線，點一下就能查解釋 */
+/** 閱讀、聽力裡點過的單字會收進這個卡組 */
+const READING_DECK = { id: 'reading-words', name: '閱讀生字' }
+
+/** 英文文字：題庫裡有的單字加上虛線，點一下就能查解釋，並自動收進「閱讀生字」卡組 */
 export function LookupText({ text }: { text: string }) {
   const { open } = useWordPopup()
+  const { addToFixedDeck } = useDecks()
   return (
     <>
       {text.split(/([A-Za-z][A-Za-z'’-]*)/).map((part, i) => {
@@ -20,6 +25,8 @@ export function LookupText({ text }: { text: string }) {
             onClick={e => {
               e.stopPropagation()
               open(info.word)
+              const card = TOEIC_WORDS.find(w => w.id === `toeic-${info.word}`)
+              if (card) addToFixedDeck(READING_DECK.id, READING_DECK.name, card)
             }}
             className="cursor-pointer underline decoration-primary/40 decoration-dotted underline-offset-4"
           >

@@ -31,6 +31,8 @@ export interface Room {
   code: string
   name: string
   owner: string
+  /** 共同挑戰：每人本週要打卡幾次，0 = 沒有挑戰 */
+  goal: number
   members: Member[]
 }
 
@@ -85,7 +87,7 @@ export async function fetchRooms(): Promise<{ userId: string; rooms: Room[] } | 
     // 一個成員只對應一個房間，但型別會被推導成陣列
     const info = (Array.isArray(row.rooms) ? row.rooms[0] : row.rooms) as Omit<Room, 'members'> | null
     if (!info) continue
-    const room = rooms.get(info.id) ?? { id: info.id, code: info.code, name: info.name, owner: info.owner, members: [] }
+    const room = rooms.get(info.id) ?? { id: info.id, code: info.code, name: info.name, owner: info.owner, goal: 0, members: [] }
     room.members.push({
       room_id: row.room_id,
       user_id: row.user_id,
@@ -96,6 +98,9 @@ export async function fetchRooms(): Promise<{ userId: string; rooms: Room[] } | 
     rooms.set(info.id, room)
   }
   setInRoom(rooms.size > 0)
+  // 共同挑戰是後來加的欄位，資料庫還沒更新時就當作沒有挑戰
+  const goals = await supabase.from('rooms').select('id, weekly_goal')
+  if (!goals.error) for (const g of goals.data) if (rooms.has(g.id)) rooms.get(g.id)!.goal = g.weekly_goal ?? 0
   return { userId, rooms: [...rooms.values()] }
 }
 
@@ -124,6 +129,14 @@ export async function leaveRoom(room: Room, userId: string) {
   if (!supabase) return
   if (room.owner === userId) await supabase.from('rooms').delete().eq('id', room.id)
   else await supabase.from('room_members').delete().eq('room_id', room.id).eq('user_id', userId)
+}
+
+/** 房主設定共同挑戰；失敗回傳錯誤訊息 */
+export async function setRoomGoal(roomId: string, goal: number): Promise<string | null> {
+  if (!supabase) return roomError(undefined)
+  const { error } = await supabase.rpc('set_room_goal', { p_room: roomId, p_goal: goal })
+  if (error?.code === 'PGRST202') return '資料庫還沒更新，請先執行 supabase/rooms-challenge.sql'
+  return error ? roomError(error.message) : null
 }
 
 export async function removeMember(member: Member) {

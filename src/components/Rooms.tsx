@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { BellRing, Check, Copy, Crown, Flame, Heart, LogOut, Pencil, Plus, Share2, Trophy, UserMinus, X } from 'lucide-react'
+import { BellRing, Check, Copy, Crown, Flame, Heart, LogOut, Pencil, Plus, Share2, Target, Trophy, UserMinus, X } from 'lucide-react'
+import Confetti from './Confetti'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useProgress } from '../hooks/useProgress'
 import { cloudEnabled } from '../utils/cloud'
@@ -16,6 +17,7 @@ import {
   removeMember,
   renameSelf,
   sendNudge,
+  setRoomGoal,
   watchRooms,
 } from '../utils/rooms'
 import type { Member, Nudge, Room } from '../utils/rooms'
@@ -268,6 +270,9 @@ export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSetting
   const [adding, setAdding] = useState(false)
   const [copied, setCopied] = useState(false)
   const [pushOn, setPushOn] = useState(isPushEnabled)
+  const [celebrated, setCelebrated] = useLocalStorage<string[]>('lifemaster.challengeCelebrated', [])
+  const [celebrate, setCelebrate] = useState(false)
+  const endCelebrate = useCallback(() => setCelebrate(false), [])
 
   const load = useCallback(async () => {
     const result = await fetchRooms()
@@ -410,8 +415,27 @@ export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSetting
     .map(m => ({ ...m, week: m.progress.date && thisWeek.has(m.progress.date) ? (m.progress.week ?? 0) : 0 }))
     .sort((a, b) => b.week - a.week)
 
+  // 共同挑戰：全員本週打卡次數都達標
+  const weekKey = [...thisWeek][0]
+  const challengeDone = room.goal > 0 && room.members.length > 1 && ranking.every(m => m.week >= room.goal)
+  const celebrateKey = `${room.id}:${weekKey}`
+  if (challengeDone && !celebrated.includes(celebrateKey)) {
+    setCelebrated(prev => [...prev.slice(-50), celebrateKey])
+    setCelebrate(true)
+  }
+
+  const editGoal = async () => {
+    const input = prompt('每人本週要打卡幾次？（0 = 取消挑戰）', String(room.goal || 14))
+    if (input === null) return
+    const goal = Math.max(0, Math.min(100, Math.floor(Number(input) || 0)))
+    const failed = await setRoomGoal(room.id, goal)
+    if (failed) alert(failed)
+    else void load()
+  }
+
   return (
     <div className="space-y-4">
+      {celebrate && <Confetti onDone={endCelebrate} />}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {rooms.map(r => (
           <button
@@ -481,7 +505,48 @@ export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSetting
             </div>
           )}
 
-          {ranking.length > 1 && ranking[0].week > 0 && (
+          {(room.goal > 0 || room.owner === userId) && room.members.length > 1 && (
+            <div className="rounded-2xl bg-surface p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+                  <Target className="h-4 w-4 text-rose-500" /> 本週共同挑戰
+                </p>
+                {room.owner === userId && (
+                  <button onClick={editGoal} className="text-xs text-primary-ink underline">
+                    {room.goal > 0 ? '修改' : '設定挑戰'}
+                  </button>
+                )}
+              </div>
+              {room.goal > 0 ? (
+                <>
+                  <p className="mt-1 text-xs text-muted">
+                    每人本週打卡 {room.goal} 次・已達成 {ranking.filter(m => m.week >= room.goal).length}/{ranking.length} 人
+                    {challengeDone && <span className="ml-1 font-semibold text-emerald-500">全員達成！</span>}
+                  </p>
+                  <div className="mt-2.5 space-y-2">
+                    {ranking.map(m => (
+                      <div key={m.user_id} className="flex items-center gap-2 text-sm">
+                        <span className="w-20 shrink-0 truncate text-fg">{m.nickname}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                          <div
+                            className={`h-full rounded-full ${m.week >= room.goal ? 'bg-emerald-500' : 'bg-rose-400'}`}
+                            style={{ width: `${Math.min(100, (m.week / room.goal) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-xs text-muted tabular-nums">
+                          {m.week}/{room.goal}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-1 text-xs text-muted">設定每人本週要打卡幾次，全員達成時大家都會看到慶祝動畫</p>
+              )}
+            </div>
+          )}
+
+          {ranking.length > 1 && ranking[0].week > 0 && room.goal === 0 && (
             <div className="rounded-2xl bg-surface p-4 shadow-sm">
               <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg">
                 <Trophy className="h-4 w-4 text-amber-500" /> 本週打卡排行

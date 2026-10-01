@@ -1,5 +1,6 @@
 import { TEST_1 } from './reading1'
 import { TEST_2 } from './reading2'
+import { TEST_3 } from './reading3'
 
 /**
  * 題庫原始格式：正確答案預設放在選項第一個（a 省略 = 0），載入時再用固定亂數打散順序。
@@ -151,7 +152,7 @@ function buildTest(raw: RawTest): ReadingTest {
   return { id: raw.id, name: raw.name, groups, total: number - 101 }
 }
 
-export const READING_TESTS: ReadingTest[] = [TEST_1, TEST_2].map(buildTest)
+export const READING_TESTS: ReadingTest[] = [TEST_1, TEST_2, TEST_3].map(buildTest)
 
 export const GROUP_BY_ID = new Map(READING_TESTS.flatMap(t => t.groups.map(g => [g.id, g] as const)))
 

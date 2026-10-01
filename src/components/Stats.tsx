@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { PointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react'
+import Achievements from './Achievements'
+import ShareReport from './ShareReport'
 import { habitColor, habitIcon } from '../data/habits'
 import { LISTENING_HISTORY_KEY } from '../data/listening'
 import type { ListeningRecord } from '../data/listening'
@@ -303,7 +305,9 @@ export default function Stats() {
         <StatTile label="📚 學過的單字" value={wordStats.length} unit="字" />
       </div>
 
+      <ShareReport />
       <WeeklyReview />
+      <Achievements />
       <MonthHeatmap />
       <LearningCurve />
 

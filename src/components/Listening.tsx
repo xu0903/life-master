@@ -10,6 +10,7 @@ import { canSpeak, englishVoices, speakLines, stopSpeaking, voiceScore } from '.
 import type { VoiceChoice } from '../utils/speech'
 
 interface Session {
+  testId: string
   part: ListeningPart
   index: number
   answers: Record<string, number>
@@ -114,7 +115,7 @@ function VoicePicker({ value, onChange }: { value: VoiceChoice; onChange: (v: Vo
 }
 
 export default function Listening() {
-  const test = LISTENING_TESTS[0]
+  const [testId, setTestId] = useState(LISTENING_TESTS[0].id)
   const [session, setSession] = useState<Session | null>(null)
   const [result, setResult] = useState<Session | null>(null)
   const [history, setHistory] = useLocalStorage<ListeningRecord[]>(LISTENING_HISTORY_KEY, [])
@@ -122,11 +123,12 @@ export default function Listening() {
   const [voices, setVoices] = useLocalStorage<VoiceChoice>('lifemaster.listeningVoices', {})
 
   const active = session ?? result
+  const test = LISTENING_TESTS.find(t => t.id === (active?.testId ?? testId)) ?? LISTENING_TESTS[0]
   const groups = active ? test.groups.filter(g => g.part === active.part) : []
 
   const start = (part: ListeningPart) => {
     setResult(null)
-    setSession({ part, index: 0, answers: {}, checked: false })
+    setSession({ testId: test.id, part, index: 0, answers: {}, checked: false })
     window.scrollTo({ top: 0 })
   }
 
@@ -240,7 +242,7 @@ export default function Listening() {
         <div className="rounded-2xl bg-surface p-6 text-center shadow-sm">
           <Trophy className={`mx-auto h-12 w-12 ${pct >= 80 ? 'text-amber-500' : 'text-faint'}`} />
           <p className="mt-2 text-sm text-muted">
-            Part {result.part} {info?.label}
+            {test.name}・Part {result.part} {info?.label}
           </p>
           <p className="text-5xl font-bold text-primary-ink">
             {correct}
@@ -270,7 +272,18 @@ export default function Listening() {
         <p className="flex items-center gap-1.5 font-semibold text-fg">
           <Headphones className="h-5 w-5 text-primary-ink" /> 聽力練習
         </p>
-        <p className="mt-0.5 mb-2 text-xs text-faint">用裝置內建語音朗讀；請關閉靜音模式並調高音量</p>
+        <p className="mt-0.5 mb-3 text-xs text-faint">請關閉靜音模式並調高音量</p>
+        <div className="mb-1 flex gap-2">
+          {LISTENING_TESTS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTestId(t.id)}
+              className={`flex-1 rounded-full py-2 text-sm transition ${test.id === t.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
         <ul className="divide-y divide-line">
           {LISTENING_PARTS.map(p => {
             const count = test.groups.filter(g => g.part === p.part).reduce((n, g) => n + g.questions.length, 0)

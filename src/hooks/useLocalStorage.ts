@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /** 任何 lifemaster 資料寫入 localStorage 時發出 */
 export const SYNC_EVENT = 'lifemaster:storage'
@@ -18,8 +18,11 @@ function read<T>(key: string, fallback: T): T {
  */
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [value, setValue] = useState<T>(() => read(key, initialValue))
+  // 掛載時讀到的值：還沒被改過就不寫回去，否則可能是預設值或過時的值，會蓋掉別的元件剛存的資料
+  const initial = useRef(value)
 
   useEffect(() => {
+    if (value === initial.current) return
     try {
       const serialized = JSON.stringify(value)
       if (localStorage.getItem(key) === serialized) return

@@ -1,4 +1,5 @@
 import { LISTENING_1 } from './listening1'
+import { LISTENING_2 } from './listening2'
 import { buildQuestion } from './reading'
 import type { RawQuestion, ReadingQuestion } from './reading'
 
@@ -123,7 +124,7 @@ function buildTest(raw: RawListening): ListeningTest {
   return { id: raw.id, name: raw.name, groups }
 }
 
-export const LISTENING_TESTS: ListeningTest[] = [LISTENING_1].map(buildTest)
+export const LISTENING_TESTS: ListeningTest[] = [LISTENING_1, LISTENING_2].map(buildTest)
 
 export const LISTENING_HISTORY_KEY = 'lifemaster.listeningHistory'
 

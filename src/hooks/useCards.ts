@@ -54,6 +54,17 @@ export function useDecks() {
     )
   }
 
+  /** 收進固定的卡組（例如閱讀時查過的單字），卡組不存在就自動建立 */
+  const addToFixedDeck = (deckId: string, name: string, card: Card) => {
+    ensureCard(card)
+    setDecks(prev => {
+      const deck = prev.find(d => d.id === deckId)
+      if (!deck) return [...prev, { id: deckId, name, cardIds: [card.id] }]
+      if (deck.cardIds.includes(card.id)) return prev
+      return prev.map(d => (d.id === deckId ? { ...d, cardIds: [...d.cardIds, card.id] } : d))
+    })
+  }
+
   const decksOf = (cardId: string) => decks.filter(d => d.cardIds.includes(cardId))
 
   /** 刪除卡片時，一併從最愛和所有卡組移除 */
@@ -62,5 +73,5 @@ export function useDecks() {
     setDecks(prev => prev.map(d => ({ ...d, cardIds: d.cardIds.filter(id => id !== cardId) })))
   }
 
-  return { favorites, decks, isFavorite, toggleFavorite, createDeck, renameDeck, deleteDeck, toggleInDeck, decksOf, forgetCard }
+  return { favorites, decks, isFavorite, toggleFavorite, createDeck, renameDeck, deleteDeck, toggleInDeck, addToFixedDeck, decksOf, forgetCard }
 }

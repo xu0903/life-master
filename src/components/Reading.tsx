@@ -276,7 +276,7 @@ export default function Reading() {
         <p className="text-xs text-faint">
           {testOfGroup(group.id)?.name}・{sectionLabel(group.section)}
           {group.questions.length > 1 && `・第 ${group.questions[0].number}–${group.questions[group.questions.length - 1].number} 題`}
-          {group.docs.length > 0 && '・點虛線單字可查解釋'}
+          {group.docs.length > 0 && '・點虛線單字可查解釋，並收進「閱讀生字」卡組'}
         </p>
 
         <Docs group={group} />
