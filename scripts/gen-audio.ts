@@ -3,13 +3,17 @@
 // 已經存在的檔案會跳過，所以題目改了只會補產生有變動的句子。
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { LISTENING_TESTS, TTS_ACCENTS, TTS_VOICES, audioFileName } from '../src/data/listening'
+import { readdirSync } from 'node:fs'
+import { LISTENING_TESTS } from '../src/data/listening'
 
 const OUT = 'public/audio'
 const MODEL = 'gpt-4o-mini-tts'
 const CONCURRENCY = 4
 
-const key = readFileSync('.env.local', 'utf8').match(/^OPENAI_API_KEY=(.+)$/m)?.[1]?.trim().replace(/^"|"$/g, '')
+const key = readFileSync('.env.local', 'utf8')
+  .match(/^OPENAI_API_KEY=(.+)$/m)?.[1]
+  ?.trim()
+  .replace(/^"|"$/g, '')
 if (!key) throw new Error('.env.local 裡找不到 OPENAI_API_KEY')
 
 // 檔名是由「聲音 + 口音 + 內容」算出來的，反推出每個檔案要用的聲音與口音
@@ -18,16 +22,45 @@ interface Job {
   text: string
   voice: string
   accent: string
+  /** 依題型與上下文寫的語氣指示 */
+  instructions: string
+}
+
+const BASE = (accent: string) =>
+  `Accent: natural ${accent} English. You are a professional voice actor recording an English listening test, but you must sound like a real person, not a narrator: ` +
+  'natural rhythm, connected speech and contractions, varied pitch, short natural pauses at commas and between sentences, no robotic evenness.'
+
+/** 每一句的語氣指示：Part 2 問句 / 選項、Part 3 對話上下文、Part 4 依音檔類型 */
+function instructionsFor(group: (typeof LISTENING_TESTS)[number]['groups'][number], index: number, accent: string): string {
+  if (group.part === 2) {
+    if (index === 0)
+      return `${BASE(accent)} Ask this as a coworker speaking casually in an office, with the intonation a real question or remark would have (falling for wh-questions, rising for yes/no questions).`
+    return `${BASE(accent)} This is an answer choice. Say the letter, a brief pause, then say the reply naturally, as if you were really answering a coworker. Do not sound like you are reading a list.`
+  }
+  if (group.part === 3) {
+    const prev = group.audio[index - 1]
+    const role = index === 0 ? 'You start the conversation.' : `The other person just said: "${prev.text}" Reply to them naturally, reacting to what they said.`
+    const end = index === group.audio.length - 1 ? ' This is the last line of the conversation.' : ''
+    return `${BASE(accent)} This is one turn in a two-person workplace conversation (phone call or face to face). ${role}${end} Show appropriate emotion (friendly, apologetic, relieved, surprised) based on the words.`
+  }
+  const label = group.label ?? 'talk'
+  const style = /message/i.test(label)
+    ? ' (a person leaving a phone message)'
+    : /advert/i.test(label)
+      ? ' (an upbeat radio ad)'
+      : /broadcast|radio/i.test(label)
+        ? ' (a radio host)'
+        : /announcement/i.test(label)
+          ? ' (a clear public announcement)'
+          : ''
+  return `${BASE(accent)} Deliver this as a real ${label.toLowerCase()} would sound${style}, with natural pacing and a brief pause between sentences.`
 }
 const jobs = new Map<string, Job>()
 for (const test of LISTENING_TESTS) {
   for (const group of test.groups) {
-    for (const line of group.audio) {
-      if (!line.audio) continue
-      const pool = TTS_VOICES[line.voice]
-      const spec = pool.flatMap(voice => TTS_ACCENTS.map(accent => ({ voice, accent }))).find(s => audioFileName(s, line.text) === line.audio)
-      if (!spec) throw new Error(`找不到對應的聲音：${line.text}`)
-      jobs.set(line.audio, { file: line.audio, text: line.text, ...spec })
+    for (const [i, line] of group.audio.entries()) {
+      if (!line.audio || !line.tts) continue
+      jobs.set(line.audio, { file: line.audio, text: line.text, ...line.tts, instructions: instructionsFor(group, i, line.tts.accent) })
     }
   }
 }
@@ -55,7 +88,7 @@ async function synthesize(job: Job) {
       voice: job.voice,
       input: job.text,
       response_format: 'mp3',
-      instructions: `Speak with a natural ${job.accent} English accent, like a professional voice actor recording a TOEIC listening test: clear, warm, conversational, moderate pace, natural intonation.`,
+      instructions: job.instructions,
     }),
   })
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`)
@@ -94,3 +127,10 @@ await Promise.all(
   }),
 )
 console.log(`完成 ${done - failed} 句，失敗 ${failed} 句${hasFfmpeg ? '' : '（沒有 ffmpeg，未壓縮）'}`)
+
+// 全部成功時，刪掉題目已經不用的舊錄音檔
+if (failed === 0) {
+  const stale = readdirSync(OUT).filter(f => f.endsWith('.mp3') && !jobs.has(f))
+  for (const f of stale) rmSync(`${OUT}/${f}`)
+  if (stale.length) console.log(`刪除 ${stale.length} 個舊錄音檔`)
+}

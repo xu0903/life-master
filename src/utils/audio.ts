@@ -40,7 +40,7 @@ export async function playRecorded(lines: SpokenLine[], rate: number, fallback: 
   currentRate = rate
   for (const [i, line] of lines.entries()) {
     if (id !== session) return
-    if (i > 0) await wait(GAP_MS / currentRate)
+    if (i > 0) await wait((line.gap ?? GAP_MS) / currentRate)
     const result = line.audio ? await playFile(`${import.meta.env.BASE_URL}audio/${line.audio}`, id) : 'error'
     if (result === 'stopped' || id !== session) return
     if (result === 'error') await fallback(line)

@@ -4,6 +4,7 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.2.0': ['聽力語音全部重新錄製：對話會參考上一句的內容接話，語氣更自然', '停頓依情境調整：問完題目停久一點，對話換人時接得比較快'],
   '1.1.0': [
     '多益單字依主題分類練習（金融、政府、教育…共 21 類），字典也能依主題瀏覽',
     '避免兩個選項都對的爭議題；答錯時可以回報「我選的也對」，不計錯',

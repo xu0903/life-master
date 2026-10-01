@@ -31,6 +31,8 @@ export interface SpokenLine {
   audio?: string
   /** 預錄用的 AI 聲音與口音 */
   tts?: TtsSpec
+  /** 這一句之前要停多久（毫秒）；沒有就用預設 */
+  gap?: number
 }
 
 // 預錄語音用的聲音與口音：每一題輪流換人、換口音，比照正式考試有美、英、澳腔
@@ -55,15 +57,28 @@ export function ttsSpec(groupIndex: number, voice: Voice): TtsSpec {
   return { voice: voices[groupIndex % voices.length], accent: TTS_ACCENTS[groupIndex % TTS_ACCENTS.length] }
 }
 
+/** 錄音版本：改了錄音方式（語氣指示）就加一，檔名會跟著換，手機才不會播到快取的舊檔 */
+const AUDIO_VERSION = 2
+
 export function audioFileName(spec: TtsSpec, text: string): string {
-  return `${hash(`${spec.voice}|${spec.accent}|${text}`)}.mp3`
+  return `${hash(`${spec.voice}|${spec.accent}|v${AUDIO_VERSION}|${text}`)}.mp3`
 }
 
-function withAudio(lines: SpokenLine[], groupIndex: number): SpokenLine[] {
+/**
+ * 句子之間的停頓：Part 2 問完題目停久一點再念選項；Part 3 對話換人說話時接得快一點，像真的在聊天
+ */
+function gapFor(part: ListeningPart, index: number): number | undefined {
+  if (index === 0) return undefined
+  if (part === 2) return index === 1 ? 900 : 650
+  if (part === 3) return 280
+  return undefined
+}
+
+function withAudio(lines: SpokenLine[], groupIndex: number, part: ListeningPart): SpokenLine[] {
   // 同一題裡男聲、女聲各固定一個人；Part 2 的題目和選項本來就是不同性別的人念
-  return lines.map(line => {
+  return lines.map((line, i) => {
     const spec = ttsSpec(groupIndex, line.voice)
-    return { ...line, audio: audioFileName(spec, line.text), tts: spec }
+    return { ...line, audio: audioFileName(spec, line.text), tts: spec, gap: gapFor(part, i) }
   })
 }
 
@@ -99,7 +114,7 @@ function buildTest(raw: RawListening): ListeningTest {
     groups.push({
       id,
       part: 2,
-      audio: withAudio([{ voice: asker, text: item.q }, ...question.options.map((o, k) => ({ voice: other(asker), text: `${LETTER_NAMES[k]}. ${o}` }))], i),
+      audio: withAudio([{ voice: asker, text: item.q }, ...question.options.map((o, k) => ({ voice: other(asker), text: `${LETTER_NAMES[k]}. ${o}` }))], i, 2),
       transcript: [{ voice: asker, text: item.q }],
       questions: [question],
     })
@@ -111,7 +126,7 @@ function buildTest(raw: RawListening): ListeningTest {
     groups.push({
       id,
       part: 3,
-      audio: withAudio(lines, i),
+      audio: withAudio(lines, i, 4),
       transcript: lines,
       questions: item.qs.map((q, k) => buildQuestion(q, `${id}-${k}`, number++, 'p3')),
     })
@@ -124,7 +139,7 @@ function buildTest(raw: RawListening): ListeningTest {
       id,
       part: 4,
       label: item.label,
-      audio: withAudio(lines, i),
+      audio: withAudio(lines, i, 4),
       transcript: lines,
       questions: item.qs.map((q, k) => buildQuestion(q, `${id}-${k}`, number++, 'p4')),
     })
