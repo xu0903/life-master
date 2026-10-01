@@ -15,6 +15,7 @@ interface SpeakButtonsProps {
 const ACCENTS: { accent: Accent; label: string }[] = [
   { accent: 'en-US', label: 'US' },
   { accent: 'en-GB', label: 'UK' },
+  { accent: 'en-AU', label: 'AU' },
 ]
 
 // 卡片本身點了會翻面，所以按鈕要阻止事件往上傳

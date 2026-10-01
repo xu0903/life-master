@@ -10,6 +10,7 @@ import { useHabits } from '../hooks/useHabits'
 import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
 import Guide from './Guide'
+import { APP_VERSION, formatBuildTime } from '../version'
 import { AutoNextToggle, DifficultyPicker } from './Practice'
 import Diagnostics from './Diagnostics'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -45,6 +46,36 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
       {desc && <p className="mt-0.5 text-xs text-muted">{desc}</p>}
       <div className="mt-3">{children}</div>
     </section>
+  )
+}
+
+/** 目前版本與手動檢查更新（App 會自動更新，這裡讓使用者確認是不是最新版） */
+function VersionInfo() {
+  const [status, setStatus] = useState('')
+  const check = async () => {
+    setStatus('檢查中…')
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration()
+      if (!reg) return setStatus('這個瀏覽器沒有離線快取，重新整理就是最新版')
+      await reg.update()
+      // 有新版會自動安裝並重新載入頁面；幾秒後還在這裡就代表已是最新版
+      window.setTimeout(() => setStatus(reg.installing || reg.waiting ? '發現新版，安裝中…' : '已經是最新版'), 2500)
+    } catch {
+      setStatus('檢查失敗，請確認網路')
+    }
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm shadow-sm">
+      <span className="text-muted">
+        目前版本 <span className="font-semibold text-fg">v{APP_VERSION}</span>
+        <span className="ml-1 text-xs text-faint">（{formatBuildTime()} 發佈）</span>
+      </span>
+      <span className="flex-1" />
+      {status && <span className="text-xs text-faint">{status}</span>}
+      <button onClick={check} className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1 text-xs text-primary-ink">
+        檢查更新
+      </button>
+    </div>
   )
 }
 
@@ -787,6 +818,7 @@ function SpeechSettingsPanel() {
           options={[
             { value: 'en-US', label: '🇺🇸 美式' },
             { value: 'en-GB', label: '🇬🇧 英式' },
+            { value: 'en-AU', label: '🇦🇺 澳式' },
           ]}
         />
       </div>
@@ -897,6 +929,7 @@ function CheckinReminder({ pushOn }: { pushOn: boolean }) {
 export default function Settings({ themeId, onThemeChange }: { themeId: string; onThemeChange: (id: string) => void }) {
   return (
     <div className="space-y-4">
+      <VersionInfo />
       <Section title="📖 使用指南" desc="用截圖一步一步介紹每個功能">
         <Guide />
       </Section>

@@ -37,8 +37,8 @@ export interface VocabEntry {
 }
 
 type Row = [string, string, string, string, string, string, string, string, number, number]
-/** [單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 常考程度, 主題編號, 易混淆字] */
-type ToeicRow = [string, string, string, string, string, string, string, string, number, number, string]
+/** [單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 常考程度, 細主題編號, 易混淆字] */
+type ToeicRow = [string, string, string, string, string, string, string, string, number, number[], string]
 
 let entries: VocabEntry[] | null = null
 let loading: Promise<VocabEntry[]> | null = null
@@ -48,7 +48,10 @@ const split = (s: string) => (s ? s.split(', ').filter(Boolean) : [])
 
 /** 載入字表（只會下載一次）；載入完成後，查單字、抽每日單字都會包含這些字 */
 export function loadVocab(): Promise<VocabEntry[]> {
-  loading ??= Promise.all([import('./vocab.json'), import('./toeic-extra.json')]).then(([vocab, toeic]) => {
+  loading ??= Promise.all([import('./vocab.json'), import('./toeic-extra.json'), import('./toeic-core-topics.json')]).then(([vocab, toeic, coreTopics]) => {
+    // 內建多益題庫的字補上主題
+    const topicMap = coreTopics.default as Record<string, number[]>
+    for (const w of WORD_INFO) w.topics ??= topicMap[w.word.toLowerCase()]
     const rows = vocab.default as Row[]
     const toeicIds = new Set(TOEIC_WORDS.map(c => c.id))
     const list: VocabEntry[] = rows.map(([word, pos, zh, def, ex, exZh, syn, ant, ceec, gept]) => {
@@ -60,8 +63,8 @@ export function loadVocab(): Promise<VocabEntry[]> {
     })
     // 多益擴充字：學測字表也有的字共用同一張卡，只補上常考程度、主題與易混淆字
     const byWord = new Map(list.map(e => [e.info.word.toLowerCase(), e]))
-    for (const [word, pos, zh, def, ex, exZh, syn, ant, freq, topic, conf] of toeic.default as ToeicRow[]) {
-      const extra = { freq, topic, conf: split(conf) }
+    for (const [word, pos, zh, def, ex, exZh, syn, ant, freq, topics, conf] of toeic.default as unknown as ToeicRow[]) {
+      const extra = { freq, topics, conf: split(conf) }
       const hit = byWord.get(word.toLowerCase())
       if (hit) {
         hit.toeic = freq
@@ -80,7 +83,7 @@ export function loadVocab(): Promise<VocabEntry[]> {
 }
 
 /** 常考程度對應目標分數：1–2 → 600、3–4 → 800、5 → 900 */
-const tierLevel = (freq: number): Level => (freq <= 2 ? 600 : freq <= 4 ? 800 : 900)
+export const tierLevel = (freq: number): Level => (freq <= 2 ? 600 : freq <= 4 ? 800 : 900)
 
 /** 多益單字的常考程度（越小越常考），用來讓每日單字先抽常考的字 */
 export function toeicPriority(): (id: string) => number {

@@ -149,8 +149,14 @@ export interface ListeningRecord {
 const ACCENT_LABEL: Record<string, string> = { American: '美式', British: '英式', Australian: '澳式' }
 
 /** 每一種預錄聲音挑一句當試聽範例（取 Part 3、4 的句子，比較長、聽得出語調） */
-export const VOICE_SAMPLES: { label: string; line: SpokenLine }[] = (() => {
-  const seen = new Map<string, { label: string; line: SpokenLine }>()
+export interface VoiceSample {
+  gender: Voice
+  accent: string
+  label: string
+  line: SpokenLine
+}
+export const VOICE_SAMPLES: VoiceSample[] = (() => {
+  const seen = new Map<string, VoiceSample>()
   for (const test of LISTENING_TESTS) {
     for (const g of test.groups) {
       if (g.part === 2) continue
@@ -158,9 +164,16 @@ export const VOICE_SAMPLES: { label: string; line: SpokenLine }[] = (() => {
         if (!line.tts) continue
         const key = `${line.tts.voice}|${line.tts.accent}`
         if (seen.has(key) || line.text.length < 60) continue
-        seen.set(key, { label: `${line.voice === 'W' ? '女聲' : '男聲'}・${ACCENT_LABEL[line.tts.accent] ?? line.tts.accent}`, line })
+        seen.set(key, {
+          gender: line.voice,
+          accent: line.tts.accent,
+          label: `${line.voice === 'W' ? '女聲' : '男聲'}・${ACCENT_LABEL[line.tts.accent] ?? line.tts.accent}`,
+          line,
+        })
       }
     }
   }
-  return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label, 'zh-Hant'))
+  // 排成兩欄：左女右男，由上到下美、澳、英
+  const order = ['American', 'Australian', 'British']
+  return [...seen.values()].sort((a, b) => order.indexOf(a.accent) - order.indexOf(b.accent) || (a.gender === 'W' ? -1 : 1))
 })()

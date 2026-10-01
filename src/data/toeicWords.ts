@@ -30,8 +30,8 @@ export interface WordInfo {
   exZh: string
   /** 多益常考程度 1（非常常考）～5（進階），只有多益擴充字表有 */
   freq?: number
-  /** 主題編號（同主題的字當困難模式的干擾選項） */
-  topic?: number
+  /** 細主題編號（對應 toeicTopics.ts；同主題的字當困難模式的干擾選項） */
+  topics?: number[]
   /** 容易搞混的字 */
   conf?: string[]
 }

@@ -7,6 +7,7 @@ import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
 import EnvBanner from './components/EnvBanner'
 import ReminderBanner from './components/ReminderBanner'
+import UpdateToast from './components/UpdateToast'
 import Rooms from './components/Rooms'
 import Settings from './components/Settings'
 import WordPopupProvider from './components/WordPopup'
@@ -28,7 +29,12 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
 
 /** 邀請連結 ?join=XXXXXX 帶來的邀請碼；讀完就從網址列拿掉 */
 function readJoinCode(): string {
-  const code = new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) ?? ''
+  const code =
+    new URLSearchParams(location.search)
+      .get('join')
+      ?.toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 6) ?? ''
   if (code) history.replaceState(null, '', location.pathname)
   return code
 }
@@ -57,9 +63,10 @@ export default function App() {
           <p className="text-sm text-muted">{today}</p>
           <h1 className="text-2xl font-bold text-fg">{activeLabel}</h1>
         </header>
-  
+
         <EnvBanner onOpenSettings={() => goTo('settings')} />
         <ReminderBanner onOpen={() => goTo('todos')} />
+        <UpdateToast />
 
         <main className="px-4 pt-2">
           {tab === 'habits' && (
@@ -79,7 +86,7 @@ export default function App() {
           {tab === 'stats' && <Stats />}
           {tab === 'settings' && <Settings themeId={themeId} onThemeChange={setThemeId} />}
         </main>
-  
+
         <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
           <div className="mx-auto flex max-w-lg">
             {TABS.map(({ id, label, Icon }) => (

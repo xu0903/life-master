@@ -18,6 +18,8 @@ export interface Question {
   type: QuestionType
   /** 選擇題選項（填空題沒有） */
   options?: string[]
+  /** 干擾選項是哪個字（選項文字 → 單字），回報爭議時用 */
+  optionWords?: Record<string, string>
   /** 正確答案（選項文字，或填空要填的字） */
   answer: string
   /** 填空題：句子切成空格前後 */
@@ -113,6 +115,46 @@ const meaningParts = (card: Card) =>
     .map(p => p.trim())
     .filter(Boolean)
 
+// 意思比對時不算的常見字（詞性標記、助詞、「者」「員」這類字尾）
+const FILLER = new Set('的地得之了著和與或及等者人員性化物品類式上下中於為被把對一某些這那其'.split(''))
+const meaningChars = (card: Card) =>
+  new Set(
+    meaningParts(card)
+      .join('')
+      .replace(/[^\u4e00-\u9fff]/g, '')
+      .split('')
+      .filter(ch => !FILLER.has(ch)),
+  )
+
+/** 使用者回報過「這兩個意思都對」的字組（單字|干擾字），之後不再一起出現 */
+export const DISPUTED_KEY = 'lifemaster.disputedPairs'
+function disputedPairs(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(DISPUTED_KEY) ?? '[]') as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+/**
+ * 干擾選項會不會也算對：同義詞（任一方向）、中文意思有相同的詞，
+ * 或中文意思有兩個以上相同的字（保鑣；護衛 vs 保護；防護措施），都不能當選項。
+ */
+function ambiguous(card: Card, other: Card, disputed: Set<string>): boolean {
+  const a = card.question.toLowerCase()
+  const b = other.question.toLowerCase()
+  if (disputed.has(`${a}|${b}`) || disputed.has(`${b}|${a}`)) return true
+  const infoA = lookupWord(a)
+  const infoB = lookupWord(b)
+  if (infoA?.syn.some(s => s.toLowerCase() === b) || infoB?.syn.some(s => s.toLowerCase() === a)) return true
+  const parts = new Set(meaningParts(card))
+  if (meaningParts(other).some(p => parts.has(p))) return true
+  const chars = meaningChars(card)
+  let shared = 0
+  for (const ch of meaningChars(other)) if (chars.has(ch) && ++shared >= 2) return true
+  return false
+}
+
 /**
  * 困難模式的干擾選項：跟答案長得像或容易搞混的字。
  * 依「易混淆字表、同字首、同字尾（-er、-tion…）、拼字只差一兩個字母、同詞性、同主題」打分，
@@ -123,7 +165,7 @@ function confusables(card: Card): Card[] {
   const w = card.question.toLowerCase()
   const conf = new Set((info?.conf ?? []).map(x => x.toLowerCase()))
   const syn = new Set((info?.syn ?? []).map(x => x.toLowerCase()))
-  const parts = new Set(meaningParts(card))
+  const disputed = disputedPairs()
   const scored: { card: Card; score: number }[] = []
   for (const c of allWordCards()) {
     const v = c.question.toLowerCase()
@@ -137,8 +179,8 @@ function confusables(card: Card): Card[] {
     if (suf >= 2) score += Math.min(suf, 5) * 1.5
     if (Math.abs(w.length - v.length) <= 2 && pre + suf >= 2 && editDistance(w, v) <= 2) score += 5
     if (info && other?.pos === info.pos) score += 2
-    if (info?.topic !== undefined && other?.topic === info.topic) score += 2
-    if (score < 5 || meaningParts(c).some(p => parts.has(p))) continue
+    if (info?.topics && other?.topics?.some(t => info.topics!.includes(t))) score += 2
+    if (score < 5 || ambiguous(card, c, disputed)) continue
     scored.push({ card: c, score: score + Math.random() * 2 })
   }
   return scored
@@ -148,20 +190,21 @@ function confusables(card: Card): Card[] {
 }
 
 /** 產生 3 個干擾選項：困難模式先挑長得像的字，其餘優先用同詞性的題庫字 */
-function distractors(card: Card, type: 'zh2en' | 'en2zh', extra: Card[], hard: boolean): string[] {
+function distractors(card: Card, type: 'zh2en' | 'en2zh', extra: Card[], hard: boolean): Map<string, string> {
   const info = lookupWord(card.question)
   const answer = type === 'zh2en' ? card.question : meaningOf(card)
   const toOption = (c: Card) => (type === 'zh2en' ? c.question : meaningOf(c))
   const samePos = info ? TOEIC_WORDS.filter((_, i) => WORD_INFO[i].pos === info.pos) : []
-  const result = new Set<string>()
+  const disputed = disputedPairs()
+  const result = new Map<string, string>()
   for (const pool of [hard ? shuffle(confusables(card)) : [], shuffle(samePos), shuffle(extra), shuffle(TOEIC_WORDS)]) {
     for (const c of pool) {
       if (result.size >= 3) break
       const opt = toOption(c)
-      if (c.id !== card.id && opt !== answer) result.add(opt)
+      if (c.id !== card.id && opt !== answer && !result.has(opt) && !ambiguous(card, c, disputed)) result.set(opt, c.question)
     }
   }
-  return [...result]
+  return result
 }
 
 export function buildQuestion(card: Card, type: QuestionType | 'mixed', extra: Card[], hard = false): Question {
@@ -188,7 +231,8 @@ export function buildQuestion(card: Card, type: QuestionType | 'mixed', extra: C
   }
   const mc = t === 'cloze' ? 'zh2en' : t
   const answer = mc === 'zh2en' ? card.question : meaningOf(card)
-  return { id, card, type: mc, answer, options: shuffle([answer, ...distractors(card, mc, extra, hard)]) }
+  const others = distractors(card, mc, extra, hard)
+  return { id, card, type: mc, answer, options: shuffle([answer, ...others.keys()]), optionWords: Object.fromEntries(others) }
 }
 
 export function buildQuiz(cards: Card[], type: QuestionType | 'mixed', extra: Card[], hard = false): Question[] {

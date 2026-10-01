@@ -20,13 +20,13 @@ export const THEMES: Theme[] = [
   { id: 'peach', name: '蜜桃珊瑚', mode: 'light', swatch: ['#fff5f0', '#f26b5b', '#fb923c'] },
   { id: 'matcha', name: '抹茶綠', mode: 'light', swatch: ['#f3f6ec', '#65a30d', '#84cc16'] },
   { id: 'graphite', name: '石墨灰', mode: 'light', swatch: ['#f4f4f5', '#27272a', '#52525b'] },
-  { id: 'obsidian', name: '曜石黑金', mode: 'dark', swatch: ['#0b0b0d', '#d4af37', '#a8842a'] },
-  { id: 'midnight', name: '午夜星藍', mode: 'dark', swatch: ['#0a0f1e', '#818cf8', '#c084fc'] },
-  { id: 'forest', name: '墨綠森林', mode: 'dark', swatch: ['#08130f', '#34d399', '#14b8a6'] },
-  { id: 'wine', name: '酒紅絲絨', mode: 'dark', swatch: ['#14080c', '#f43f5e', '#fb7185'] },
-  { id: 'ocean', name: '深海藍', mode: 'dark', swatch: ['#03131b', '#22d3ee', '#38bdf8'] },
-  { id: 'sunset', name: '晚霞橘粉', mode: 'dark', swatch: ['#150c09', '#fb923c', '#f472b6'] },
-  { id: 'charcoal', name: '炭灰極簡', mode: 'dark', swatch: ['#0e0f11', '#e4e4e7', '#a1a1aa'] },
+  { id: 'obsidian', name: '曜石黑金', mode: 'dark', swatch: ['#0d0d0f', '#b8922e', '#8c6d1f'] },
+  { id: 'midnight', name: '午夜星藍', mode: 'dark', swatch: ['#0b1020', '#6366f1', '#8b5cf6'] },
+  { id: 'forest', name: '墨綠森林', mode: 'dark', swatch: ['#0a1410', '#0f9f74', '#0d8a80'] },
+  { id: 'wine', name: '酒紅絲絨', mode: 'dark', swatch: ['#130a0d', '#be2d4f', '#e04f6f'] },
+  { id: 'ocean', name: '深海藍', mode: 'dark', swatch: ['#06131b', '#0e8fb0', '#1d74c9'] },
+  { id: 'sunset', name: '晚霞橘粉', mode: 'dark', swatch: ['#140d0b', '#e0613a', '#c2417a'] },
+  { id: 'charcoal', name: '炭灰極簡', mode: 'dark', swatch: ['#0f1012', '#52525b', '#3f3f46'] },
 ]
 
 /** 預設用淺色主題；要跟隨系統或用深色可以到設定裡選 */

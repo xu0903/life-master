@@ -4,11 +4,14 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, CircleHelp, FastForward, Lightb
 import CardActions from './CardActions'
 import SpeakButtons from './SpeakButtons'
 import type { Card } from '../data/flashcards'
-import { QUESTION_TYPES, buildQuiz, isClozeCorrect, meaningOf, pickCards } from '../data/practice'
+import { DISPUTED_KEY, QUESTION_TYPES, buildQuiz, isClozeCorrect, meaningOf, pickCards } from '../data/practice'
 import type { Question, QuestionType } from '../data/practice'
 import { TOEIC_WORDS, WORD_INFO, lookupWord, nextStat } from '../data/toeicWords'
+import type { WordStat } from '../data/toeicWords'
 import { useCards } from '../hooks/useCards'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 import { needsVocab, sourceLabel, vocabPool } from '../data/vocab'
+import { TOEIC_TOPICS, cardsInTopic } from '../data/toeicTopics'
 import { useVocabReady, useWordLevel, useWordSource, useWordStats } from '../hooks/useDailyWords'
 import { DIFFICULTIES, DIFFICULTY_HELP, HELL_SECONDS, useAutoNext, useDifficulty } from '../hooks/usePracticeSettings'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
@@ -26,6 +29,10 @@ interface Result {
   question: Question
   correct: boolean
   given: string
+  /** 作答前的熟練度，回報爭議時還原 */
+  prevStat?: WordStat
+  /** 使用者回報「兩個都對」，不計錯 */
+  disputed?: boolean
 }
 
 const COUNTS = [15, 30]
@@ -127,6 +134,7 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
   const allSources = [bank, ...sources.filter(s => s.cards.length > 0)]
 
   const [sourceId, setSourceId] = useState('bank')
+  const [topic, setTopic] = useLocalStorage('lifemaster.practiceTopic', '')
   const [count, setCount] = useState(15)
   const [type, setType] = useState<QuestionType | 'mixed'>('mixed')
   const [phase, setPhase] = useState<'setup' | 'quiz' | 'result'>('setup')
@@ -140,7 +148,10 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
 
   useEffect(() => () => window.clearTimeout(advanceTimer.current), [])
 
-  const source = allSources.find(s => s.id === sourceId) ?? bank
+  const chosen = allSources.find(s => s.id === sourceId) ?? bank
+  // 多益題庫可以再依主題篩選（金融、政府、教育…）
+  const canTopic = chosen.id === 'bank' && wordSource.list === 'toeic' && vocabReady
+  const source: PracticeSource = canTopic && topic ? { ...chosen, cards: cardsInTopic(chosen.cards, topic) } : chosen
   const q = questions[index]
   // 每一題的作答紀錄依題號存放；回到上一題時可以看當時的答案
   const record = results[index]
@@ -178,7 +189,7 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
     const correct = q.type === 'cloze' ? isClozeCorrect(given, q.answer) : given === q.answer
     setResults(prev => {
       const updated = [...prev]
-      updated[index] = { question: q, correct, given }
+      updated[index] = { question: q, correct, given, prevStat: stats[q.card.id] }
       return updated
     })
     // 第一輪才計入熟練度；錯題複習只是練習
@@ -216,6 +227,21 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
               ))}
             </div>
           </div>
+          {canTopic && (
+            <div>
+              <p className="mb-2 text-sm font-semibold text-fg">多益主題</p>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={!topic} onClick={() => setTopic('')}>
+                  全部主題
+                </Chip>
+                {TOEIC_TOPICS.map(t => (
+                  <Chip key={t.id} active={topic === t.id} onClick={() => setTopic(t.id)}>
+                    {t.emoji} {t.label} <span className="opacity-70">{cardsInTopic(chosen.cards, t.id).length}</span>
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <p className="mb-2 text-sm font-semibold text-fg">題數</p>
             <div className="flex gap-2">
@@ -338,6 +364,28 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
     return 'bg-surface text-faint ring-1 ring-line'
   }
 
+  // 回報爭議：這題不計錯、熟練度還原，這兩個字之後不會再一起出現
+  const dispute = () => {
+    if (!record || record.correct) return
+    const other = q.optionWords?.[record.given]
+    if (other) {
+      try {
+        const list = JSON.parse(localStorage.getItem(DISPUTED_KEY) ?? '[]') as string[]
+        localStorage.setItem(DISPUTED_KEY, JSON.stringify([...list, `${q.card.question.toLowerCase()}|${other.toLowerCase()}`].slice(-500)))
+      } catch {
+        // 存不了就只影響這一題
+      }
+    }
+    if (round === 1)
+      setStats(prev => {
+        const next = { ...prev }
+        if (record.prevStat) next[q.card.id] = record.prevStat
+        else delete next[q.card.id]
+        return next
+      })
+    setResults(prev => prev.map((r, i) => (i === index ? { ...r, correct: true, disputed: true } : r)))
+  }
+
   const onClozeSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (answered) next()
@@ -378,7 +426,7 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
           {answered && (
             <span className={`flex items-center gap-1 text-sm font-semibold ${isCorrect ? 'text-emerald-500' : 'text-rose-500'}`}>
               {isCorrect ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              {isCorrect ? '答對了' : picked === '' ? '時間到' : '答錯了'}
+              {record?.disputed ? '已標記爭議' : isCorrect ? '答對了' : picked === '' ? '時間到' : '答錯了'}
             </span>
           )}
         </div>
@@ -469,6 +517,13 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
           )}
         </form>
       )}
+
+      {answered && !isCorrect && q.options && picked && q.optionWords?.[picked] && (
+        <button onClick={dispute} className="w-full py-1 text-center text-sm text-faint underline underline-offset-2">
+          我選的也對？回報這題有爭議（不計錯）
+        </button>
+      )}
+      {record?.disputed && <p className="text-center text-xs text-faint">已回報，這題不計錯，這兩個字之後不會再一起出題</p>}
 
       {!answered && index > 0 && (
         <button onClick={() => goTo(index - 1)} className="flex w-full items-center justify-center gap-1 py-1 text-sm text-faint">

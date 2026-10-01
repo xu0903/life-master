@@ -6,7 +6,7 @@ import type { ListeningGroup, ListeningPart, ListeningRecord } from '../data/lis
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useMistakeWords } from '../hooks/useMistakeWords'
 import { toDateKey } from '../utils/date'
-import { playRecorded, stopRecorded } from '../utils/audio'
+import { playRecorded, setPlaybackRate, stopRecorded } from '../utils/audio'
 import { canSpeak, englishVoices, speakLines, stopSpeaking, voiceScore } from '../utils/speech'
 import type { VoiceChoice } from '../utils/speech'
 
@@ -358,6 +358,8 @@ export default function Listening() {
   const [history, setHistory] = useLocalStorage<ListeningRecord[]>(LISTENING_HISTORY_KEY, [])
   const [speed, setSpeed] = useLocalStorage('lifemaster.listeningSpeed', DEFAULT_SPEED)
   const [examMode, setExamMode] = useLocalStorage('lifemaster.listeningExam', false)
+  // 播放中改速度也立刻生效
+  useEffect(() => setPlaybackRate(speed), [speed])
   const [voices, setVoices] = useLocalStorage<VoiceChoice>('lifemaster.listeningVoices', {})
 
   const active = session ?? result

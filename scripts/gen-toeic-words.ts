@@ -258,15 +258,30 @@ const cleanZh = (zh: string, pos = '') =>
         .replace(/\s+；/g, '；')
         .trim()
 
-// 輸出：[單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 常考程度 1–5, 主題編號, 易混淆字]
+// 輸出：[單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 常考程度 1–5, 主題編號（可多個）, 易混淆字]
 const rows = picked
   .filter(([k]) => enrichCache[k])
   .map(([k, e]) => {
     const c = enrichCache[k]
     const conf = [...e.conf].filter(w => w.toLowerCase() !== k).slice(0, 4)
-    return [e.word, e.pos, cleanZh(c.zh, e.pos), c.def, c.ex, c.exZh, c.syn.join(', '), c.ant.join(', '), e.f, Number(e.topics[0]), conf.join(', ')]
+    return [
+      e.word,
+      e.pos,
+      cleanZh(c.zh, e.pos),
+      c.def,
+      c.ex,
+      c.exZh,
+      c.syn.join(', '),
+      c.ant.join(', '),
+      e.f,
+      [...new Set(e.topics.map(Number))],
+      conf.join(', '),
+    ]
   })
 writeFileSync(OUT, JSON.stringify(rows))
+// 內建多益題庫的字也記下主題，主題分類練習才會包含它們
+const coreTopics = Object.fromEntries([...merged.entries()].filter(([k]) => core.has(k)).map(([k, e]) => [k, [...new Set(e.topics.map(Number))]]))
+writeFileSync('src/data/toeic-core-topics.json', JSON.stringify(coreTopics))
 // gpt-4.1-mini 定價（每百萬 token）：輸入約 $0.40、輸出約 $1.60，以官網為準
 console.log(
   `輸出 ${rows.length} 字到 ${OUT}；本次 token：輸入 ${usage.input}、輸出 ${usage.output}，約 $${((usage.input * 0.4 + usage.output * 1.6) / 1e6).toFixed(2)}`,

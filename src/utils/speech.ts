@@ -1,4 +1,4 @@
-export type Accent = 'en-US' | 'en-GB'
+export type Accent = 'en-US' | 'en-GB' | 'en-AU'
 
 export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
 

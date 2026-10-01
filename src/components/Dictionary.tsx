@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Search, Volume2 } from 'lucide-react'
 import { WORD_INFO } from '../data/toeicWords'
-import { vocabEntries } from '../data/vocab'
+import { tierLevel, vocabEntries } from '../data/vocab'
+import { TOEIC_TOPICS, topicCategories } from '../data/toeicTopics'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import { useVocabReady } from '../hooks/useDailyWords'
 import { useWordPopup } from '../hooks/useWordPopup'
@@ -13,6 +14,8 @@ interface Entry {
   zh: string
   /** 顯示用的分類標籤，例如「學測 3」「多益 800」 */
   tags: string[]
+  /** 多益主題分類 id */
+  topics: string[]
 }
 
 type ListFilter = 'all' | 'toeic' | 'ceec'
@@ -28,18 +31,22 @@ export default function Dictionary() {
   const [query, setQuery] = useState('')
   const [list, setList] = useState<ListFilter>('all')
   const [level, setLevel] = useState(0)
+  const [topic, setTopic] = useState('')
   const [letter, setLetter] = useState('')
   const [shown, setShown] = useState(PAGE)
 
   const all = useMemo<Entry[]>(() => {
     const map = new Map<string, Entry>()
-    for (const w of WORD_INFO) map.set(w.word.toLowerCase(), { word: w.word, pos: w.pos, zh: w.zh, tags: [`多益 ${w.level}`] })
+    for (const w of WORD_INFO)
+      map.set(w.word.toLowerCase(), { word: w.word, pos: w.pos, zh: w.zh, tags: [`多益 ${w.level}`], topics: topicCategories(w.topics) })
     for (const e of (ready && vocabEntries()) || []) {
       const key = e.info.word.toLowerCase()
+      const tags = [...(e.toeic ? [`多益 ${tierLevel(e.toeic)}`] : []), ...(e.ceec ? [`學測 ${e.ceec}`] : [])]
       const cur = map.get(key)
-      const tag = `學測 ${e.ceec}`
-      if (cur) cur.tags.push(tag)
-      else map.set(key, { word: e.info.word, pos: e.info.pos, zh: e.info.zh, tags: [tag] })
+      if (cur) {
+        for (const t of tags) if (!cur.tags.some(x => x.slice(0, 2) === t.slice(0, 2))) cur.tags.push(t)
+        cur.topics = topicCategories(e.info.topics)
+      } else map.set(key, { word: e.info.word, pos: e.info.pos, zh: e.info.zh, tags, topics: topicCategories(e.info.topics) })
     }
     return [...map.values()].sort((a, b) => a.word.localeCompare(b.word, 'en', { sensitivity: 'base' }))
   }, [ready])
@@ -47,6 +54,7 @@ export default function Dictionary() {
   const q = query.trim().toLowerCase()
   const results = all.filter(e => {
     if (list === 'toeic' && !e.tags.some(t => t.startsWith('多益'))) return false
+    if (list === 'toeic' && topic && !e.topics.includes(topic)) return false
     if (list === 'ceec' && !e.tags.some(t => t.startsWith('學測') && (!level || t === `學測 ${level}`))) return false
     if (letter && !e.word.toUpperCase().startsWith(letter)) return false
     if (!q) return true
@@ -55,7 +63,8 @@ export default function Dictionary() {
   // 英文搜尋時，開頭相符的排前面
   if (q && /[a-z]/.test(q)) results.sort((a, b) => Number(!a.word.toLowerCase().startsWith(q)) - Number(!b.word.toLowerCase().startsWith(q)))
 
-  const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-sm transition ${active ? 'bg-primary font-semibold text-on-primary' : 'bg-surface text-muted'}`
+  const chip = (active: boolean) =>
+    `shrink-0 rounded-full px-3 py-1.5 text-sm transition ${active ? 'bg-primary font-semibold text-on-primary' : 'bg-surface text-muted'}`
   const reset = () => setShown(PAGE)
 
   return (
@@ -88,6 +97,7 @@ export default function Dictionary() {
             onClick={() => {
               setList(v)
               setLevel(0)
+              setTopic('')
               reset()
             }}
             className={chip(list === v)}
@@ -95,6 +105,19 @@ export default function Dictionary() {
             {label}
           </button>
         ))}
+        {list === 'toeic' &&
+          TOEIC_TOPICS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setTopic(topic === t.id ? '' : t.id)
+                reset()
+              }}
+              className={chip(topic === t.id)}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
         {list === 'ceec' &&
           [1, 2, 3, 4, 5, 6].map(n => (
             <button
