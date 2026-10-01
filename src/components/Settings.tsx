@@ -6,6 +6,8 @@ import type { Habit, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useWordLevel } from '../hooks/useDailyWords'
 import { useHabits } from '../hooks/useHabits'
+import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
+import Diagnostics from './Diagnostics'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import type { AutoSpeak } from '../hooks/useSpeechSettings'
@@ -670,6 +672,40 @@ function NotificationPanel() {
         </button>
       </div>
       {tested === false && <p className="text-xs text-rose-500">測試通知發送失敗，請確認權限設定</p>}
+      <CheckinReminder pushOn={pushOn} />
+    </div>
+  )
+}
+
+/** 每日打卡提醒：自己選時間，預設關閉 */
+function CheckinReminder({ pushOn }: { pushOn: boolean }) {
+  const [time, setTime] = useLocalStorage(CHECKIN_REMIND_KEY, '')
+  return (
+    <div className="border-t border-line pt-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-fg">每日打卡提醒</p>
+          <p className="text-xs text-muted">{time ? `每天 ${time}，當天習慣還沒全部完成時提醒你` : '目前關閉'}</p>
+        </div>
+        {time ? (
+          <button onClick={() => setTime('')} className="shrink-0 rounded-full bg-surface-2 px-3.5 py-1.5 text-sm text-muted">
+            關閉
+          </button>
+        ) : (
+          <button onClick={() => setTime('21:00')} className="shrink-0 rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-on-primary">
+            開啟
+          </button>
+        )}
+      </div>
+      {time && (
+        <input
+          type="time"
+          value={time}
+          onChange={e => e.target.value && setTime(e.target.value)}
+          className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2 text-base text-fg outline-none focus:border-primary"
+        />
+      )}
+      {time && !pushOn && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">需要先開啟上方的通知，提醒才會送出</p>}
     </div>
   )
 }
@@ -691,7 +727,7 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         <SpeechSettingsPanel />
       </Section>
 
-      <Section title="🔔 待辦通知" desc="開啟後 App 關著也會收到待辦提醒與夥伴的督促；也可以在任務裡用「加到 iPhone 行事曆」">
+      <Section title="🔔 通知" desc="開啟後 App 關著也會收到待辦提醒、習慣提醒與夥伴的督促；也可以在任務裡用「加到 iPhone 行事曆」">
         <NotificationPanel />
       </Section>
 
@@ -729,6 +765,10 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
       <Section title="💾 資料備份" desc="資料存在這台裝置的瀏覽器裡；開啟雲端備份，或定期匯出檔案，清除 Safari 資料或換手機時才不會遺失">
         <CloudBackup />
         <Backup />
+      </Section>
+
+      <Section title="🩺 環境檢查" desc="收不到通知或資料一直消失時，看這裡哪一項是紅字；也可以複製結果傳給開發者">
+        <Diagnostics />
       </Section>
 
       <Section title="📱 加到 iPhone 主畫面">

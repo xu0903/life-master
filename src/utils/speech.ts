@@ -19,22 +19,48 @@ export function speak(text: string, accent: Accent = 'en-US') {
 const MALE = /daniel|aaron|fred|alex|arthur|gordon|rishi|oliver|tom\b|david|mark|george|james|guy|ryan|male/i
 const FEMALE = /samantha|karen|moira|tessa|victoria|susan|zira|kate|serena|martha|nicky|allison|ava|jenny|aria|hazel|sonia|libby|female/i
 
-function pickVoice(gender: 'M' | 'W'): SpeechSynthesisVoice | undefined {
-  const english = window.speechSynthesis.getVoices().filter(v => v.lang.replace('_', '-').startsWith('en'))
+/** 語音品質分數：神經網路 / 高品質語音聽起來自然很多 */
+export function voiceScore(v: SpeechSynthesisVoice): number {
+  let score = 0
+  if (/natural|neural|premium/i.test(v.name)) score += 6
+  if (/enhanced|online/i.test(v.name)) score += 4
+  if (/google/i.test(v.name)) score += 3
+  if (/compact|eloquence|novelty|bad news|bells|boing|bubbles|cellos|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|fred|junior|ralph|kathy|bahh/i.test(v.name)) score -= 10
+  if (v.lang.replace('_', '-') === 'en-US') score += 1
+  return score
+}
+
+/** 這台裝置上的英文語音，品質好的排前面 */
+export function englishVoices(): SpeechSynthesisVoice[] {
+  if (!canSpeak) return []
+  return window.speechSynthesis
+    .getVoices()
+    .filter(v => v.lang.replace('_', '-').startsWith('en'))
+    .sort((a, b) => voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name))
+}
+
+/** 使用者在聽力設定裡指定的語音（voiceURI） */
+export type VoiceChoice = Partial<Record<'M' | 'W', string>>
+
+function pickVoice(gender: 'M' | 'W', choice: VoiceChoice = {}): SpeechSynthesisVoice | undefined {
+  const english = englishVoices()
+  const chosen = choice[gender] && english.find(v => v.voiceURI === choice[gender])
+  if (chosen) return chosen
   const wanted = gender === 'M' ? MALE : FEMALE
   const unwanted = gender === 'M' ? FEMALE : MALE
-  return english.find(v => wanted.test(v.name)) ?? english.find(v => !unwanted.test(v.name) && v.lang.replace('_', '-') === 'en-US')
+  // 已依品質排序，先找看得出性別的，再找不像另一性別的
+  return english.find(v => wanted.test(v.name)) ?? english.find(v => !unwanted.test(v.name))
 }
 
 // 保留參照，避免朗讀到一半 utterance 被回收而中斷（Safari 的已知問題）
 let queue: SpeechSynthesisUtterance[] = []
 
 /** 依序念出多句話，M / W 用不同的聲音；全部念完（或被中斷）時呼叫 onEnd */
-export function speakLines(lines: { voice: 'M' | 'W'; text: string }[], rate: number, onEnd: () => void) {
+export function speakLines(lines: { voice: 'M' | 'W'; text: string }[], rate: number, onEnd: () => void, choice: VoiceChoice = {}) {
   if (!canSpeak) return onEnd()
   const synth = window.speechSynthesis
   synth.cancel()
-  const voices = { M: pickVoice('M'), W: pickVoice('W') }
+  const voices = { M: pickVoice('M', choice), W: pickVoice('W', choice) }
   const sameVoice = voices.M === voices.W
   const mine = lines.map(line => {
     const u = new SpeechSynthesisUtterance(line.text)

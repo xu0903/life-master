@@ -5,7 +5,8 @@ import { LISTENING_HISTORY_KEY, LISTENING_PARTS, LISTENING_TESTS } from '../data
 import type { ListeningGroup, ListeningPart, ListeningRecord } from '../data/listening'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { toDateKey } from '../utils/date'
-import { canSpeak, speakLines, stopSpeaking } from '../utils/speech'
+import { canSpeak, englishVoices, speakLines, stopSpeaking, voiceScore } from '../utils/speech'
+import type { VoiceChoice } from '../utils/speech'
 
 interface Session {
   part: ListeningPart
@@ -19,7 +20,7 @@ const SPEEDS = [
   { rate: 0.78, label: '慢速' },
 ]
 
-function Player({ group, rate }: { group: ListeningGroup; rate: number }) {
+function Player({ group, rate, voices }: { group: ListeningGroup; rate: number; voices: VoiceChoice }) {
   const [playing, setPlaying] = useState(false)
   const [plays, setPlays] = useState(0)
 
@@ -34,7 +35,7 @@ function Player({ group, rate }: { group: ListeningGroup; rate: number }) {
     }
     setPlaying(true)
     setPlays(n => n + 1)
-    speakLines(group.audio, rate, () => setPlaying(false))
+    speakLines(group.audio, rate, () => setPlaying(false), voices)
   }
 
   return (
@@ -53,12 +54,63 @@ function Player({ group, rate }: { group: ListeningGroup; rate: number }) {
   )
 }
 
+/** 選擇女聲 / 男聲；品質好的語音排前面並標上推薦 */
+function VoicePicker({ value, onChange }: { value: VoiceChoice; onChange: (v: VoiceChoice) => void }) {
+  const [voices, setVoices] = useState(englishVoices)
+
+  // 語音清單在部分瀏覽器是非同步載入的
+  useEffect(() => {
+    const update = () => setVoices(englishVoices())
+    window.speechSynthesis.addEventListener('voiceschanged', update)
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', update)
+  }, [])
+
+  const hasGood = voices.some(v => voiceScore(v) >= 4)
+  const select = (gender: 'M' | 'W', label: string, sample: string) => (
+    <label className="flex items-center gap-2 text-sm">
+      <span className="w-10 shrink-0 text-muted">{label}</span>
+      <select
+        value={value[gender] ?? ''}
+        onChange={e => onChange({ ...value, [gender]: e.target.value || undefined })}
+        className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-fg outline-none focus:border-primary"
+      >
+        <option value="">自動選擇</option>
+        {voices.map(v => (
+          <option key={v.voiceURI} value={v.voiceURI}>
+            {voiceScore(v) >= 4 ? '★ ' : ''}
+            {v.name}（{v.lang}）
+          </option>
+        ))}
+      </select>
+      <button
+        onClick={() => speakLines([{ voice: gender, text: sample }], 0.95, () => {}, value)}
+        className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1.5 text-xs text-fg"
+      >
+        試聽
+      </button>
+    </label>
+  )
+
+  return (
+    <div className="space-y-2">
+      {select('W', '女聲', 'Hello, this is Jenna Park. I have a dinner reservation for tomorrow.')}
+      {select('M', '男聲', "Let me see. We can seat eight people in the private room at the back.")}
+      {!hasGood && (
+        <p className="text-xs leading-relaxed text-faint">
+          聽起來生硬是因為裝置只有基本語音。iPhone 可以到「設定 → 輔助使用 → 朗讀內容 → 聲音 → 英文」下載標示「高品質」或「增強」的聲音（例如 Ava、Evan），下載後回來這裡選擇；電腦用 Edge 瀏覽器會有自然的 Natural 語音。
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function Listening() {
   const test = LISTENING_TESTS[0]
   const [session, setSession] = useState<Session | null>(null)
   const [result, setResult] = useState<Session | null>(null)
   const [history, setHistory] = useLocalStorage<ListeningRecord[]>(LISTENING_HISTORY_KEY, [])
   const [speed, setSpeed] = useLocalStorage('lifemaster.listeningRate', SPEEDS[0].rate)
+  const [voices, setVoices] = useLocalStorage<VoiceChoice>('lifemaster.listeningVoices', {})
 
   const active = session ?? result
   const groups = active ? test.groups.filter(g => g.part === active.part) : []
@@ -116,7 +168,7 @@ export default function Listening() {
           </span>
         </div>
 
-        <Player key={group.id} group={group} rate={speed} />
+        <Player key={group.id} group={group} rate={speed} voices={voices} />
 
         <div className="space-y-6">
           {group.questions.map(q => (
@@ -251,6 +303,8 @@ export default function Listening() {
             </button>
           ))}
         </div>
+        <p className="mt-4 mb-2 text-sm font-semibold text-fg">朗讀聲音</p>
+        <VoicePicker value={voices} onChange={setVoices} />
       </div>
     </div>
   )

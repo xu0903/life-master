@@ -12,8 +12,6 @@ import { calcStreak, toDateKey, weekKeys } from '../utils/date'
 import { pushProgress } from '../utils/rooms'
 import type { Progress } from '../utils/rooms'
 
-export const NIGHTLY_REMIND_KEY = 'lifemaster.nightlyRemind'
-
 /** 彙整今天的習慣、待辦、單字、閱讀進度（只有數字，不含任何內容） */
 export function useProgress(): Progress {
   const today = toDateKey()
@@ -26,7 +24,6 @@ export function useProgress(): Progress {
   })
   const [reading] = useLocalStorage<ReadingRecord[]>(READING_HISTORY_KEY, [])
   const [listening] = useLocalStorage<ListeningRecord[]>(LISTENING_HISTORY_KEY, [])
-  const [remind] = useLocalStorage(NIGHTLY_REMIND_KEY, false)
   const dailyToday = daily.date === today
   const week = new Set(weekKeys())
 
@@ -39,7 +36,6 @@ export function useProgress(): Progress {
     todosLeft: todos.filter(t => !t.done).length,
     wordsDone: dailyToday ? daily.ids.filter(id => id in daily.answered).length : 0,
     wordsTotal: dailyToday ? daily.ids.length : 0,
-    remind,
     week: habits.reduce((n, h) => n + h.completedDates.filter(d => week.has(d)).length, 0),
     reading: [...reading, ...listening].filter(r => r.date === today).reduce((n, r) => n + r.total, 0),
   }

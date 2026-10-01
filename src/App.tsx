@@ -5,6 +5,7 @@ import Habits from './components/Habits'
 import Todos from './components/Todos'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
+import EnvBanner from './components/EnvBanner'
 import ReminderBanner from './components/ReminderBanner'
 import Rooms from './components/Rooms'
 import Settings from './components/Settings'
@@ -54,6 +55,7 @@ export default function App() {
           <h1 className="text-2xl font-bold text-fg">{activeLabel}</h1>
         </header>
   
+        <EnvBanner onOpenSettings={() => goTo('settings')} />
         <ReminderBanner onOpen={() => goTo('todos')} />
 
         <main className="px-4 pt-2">

@@ -14,8 +14,6 @@ export interface Progress {
   wordsTotal: number
   /** 本週（週一起）習慣打卡總次數 */
   week: number
-  /** 是否要收每晚 9 點的打卡提醒（預設不收） */
-  remind?: boolean
   /** 今天寫的閱讀與聽力題數 */
   reading: number
 }

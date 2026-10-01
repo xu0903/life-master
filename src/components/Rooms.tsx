@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { BellRing, Check, Copy, Crown, Flame, Heart, LogOut, Pencil, Plus, Share2, Trophy, UserMinus, X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { NIGHTLY_REMIND_KEY, useProgress } from '../hooks/useProgress'
+import { useProgress } from '../hooks/useProgress'
 import { cloudEnabled } from '../utils/cloud'
 import { toDateKey, weekKeys } from '../utils/date'
 import { PUSH_EVENT, isPushEnabled } from '../utils/push'
@@ -259,7 +259,6 @@ function BrowserHint({ code }: { code: string }) {
 
 export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSettings: () => void; joinCode?: string }) {
   const progress = useProgress()
-  const [remind, setRemind] = useLocalStorage(NIGHTLY_REMIND_KEY, false)
   const [pendingCode, setPendingCode] = useState(joinCode)
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading')
   const [userId, setUserId] = useState('')
@@ -511,13 +510,10 @@ export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSetting
           </div>
           {room.members.length === 1 && <p className="text-center text-sm text-faint">房間裡還只有你，把邀請碼傳給朋友吧</p>}
 
-          <label className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-sm">
-            <span>
-              <span className="block text-sm font-medium text-fg">每晚 9 點提醒我打卡</span>
-              <span className="block text-xs text-muted">當天習慣還沒全部完成時才會通知</span>
-            </span>
-            <input type="checkbox" checked={remind} onChange={e => setRemind(e.target.checked)} className="h-5 w-5 accent-primary" />
-          </label>
+          <button onClick={onOpenSettings} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm">
+            <span className="block font-medium text-fg">每日打卡提醒</span>
+            <span className="block text-xs text-muted">到設定 →「通知」選一個時間，當天習慣還沒完成時提醒你</span>
+          </button>
 
           <button onClick={leave} className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-faint">
             <LogOut className="h-4 w-4" /> {room.owner === userId ? '解散房間' : '離開房間'}

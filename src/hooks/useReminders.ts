@@ -10,6 +10,9 @@ import { PUSH_EVENT, enablePush, isPushEnabled, syncReminders } from '../utils/p
 import { addDays, toDateKey } from '../utils/date'
 import { showNotification } from '../utils/reminders'
 
+/** 每日打卡提醒時間 HH:mm；空字串 = 關閉（預設） */
+export const CHECKIN_REMIND_KEY = 'lifemaster.checkinRemind'
+
 /** 超過這個時間才發現的提醒，視為雲端推播已經通知過，只顯示橫幅 */
 const LATE_MS = 90000
 
@@ -23,6 +26,7 @@ export function useReminders() {
   const [alerts, setAlerts] = useState<Todo[]>([])
   const [habits] = useLocalStorage<Habit[]>(HABITS_KEY, DEFAULT_HABITS)
   const [pomodoro] = useLocalStorage<PomodoroState>(POMODORO_KEY, POMODORO_INITIAL)
+  const [checkinTime] = useLocalStorage(CHECKIN_REMIND_KEY, '')
 
   useEffect(() => {
     const check = () => {
@@ -81,6 +85,17 @@ export function useReminders() {
           items.push({ ref: `habit:${h.id}:${toDateKey(day)}`, title: `該「${h.name}」了`, body: '今天還沒打卡', fire_at: at.toISOString() })
         }
       }
+      // 每日打卡提醒：使用者自己選的時間；今天習慣都完成了就不提醒
+      if (checkinTime) {
+        const [hh, mm] = checkinTime.split(':').map(Number)
+        const allDone = habits.length > 0 && habits.every(h => isHabitDone(h))
+        for (let d = 0; d < 7; d++) {
+          const day = addDays(new Date(), d)
+          const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm)
+          if (at.getTime() <= now || (d === 0 && allDone)) continue
+          items.push({ ref: `checkin:${toDateKey(day)}`, title: '今天還沒完成打卡', body: '打開 LifeMaster 把今天的習慣完成吧', fire_at: at.toISOString() })
+        }
+      }
       // 番茄鐘：App 切到背景時也能在時間到的時候通知
       if (pomodoro.endAt && pomodoro.endAt > now) {
         const focus = pomodoro.mode === 'focus'
@@ -94,7 +109,7 @@ export function useReminders() {
       void syncReminders(items)
     }, 2000)
     return () => window.clearTimeout(timer)
-  }, [todos, habits, pomodoro.endAt, pomodoro.mode, pushOn])
+  }, [todos, habits, pomodoro.endAt, pomodoro.mode, checkinTime, pushOn])
 
   const dismiss = (id: string) => setAlerts(prev => prev.filter(t => t.id !== id))
 
