@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import { FLASHCARDS_KEY } from '../data/flashcards'
 import type { Card } from '../data/flashcards'
-import { TOEIC_WORDS, nextStat, pickDailyWords, toGrade } from '../data/toeicWords'
+import { findCard, nextStat, pickDailyWords, toGrade } from '../data/toeicWords'
 import type { Grade, Level, WordStat } from '../data/toeicWords'
+import { DEFAULT_WORD_SOURCE, WORD_SOURCE_KEY, loadVocab, needsVocab, vocabEntries, vocabPool } from '../data/vocab'
+import type { WordSource } from '../data/vocab'
 import { toDateKey } from '../utils/date'
 
 interface DailyWordsState {
@@ -26,6 +28,24 @@ export function useWordLevel() {
   return useLocalStorage<Level>(WORD_LEVEL_KEY, 900)
 }
 
+export function useWordSource() {
+  return useLocalStorage<WordSource>(WORD_SOURCE_KEY, DEFAULT_WORD_SOURCE)
+}
+
+/** 需要學測 / 英檢字表時才載入；回傳是否已可使用 */
+export function useVocabReady(needed: boolean): boolean {
+  const [ready, setReady] = useState(() => vocabEntries() !== null)
+  useEffect(() => {
+    if (!needed || ready) return
+    let alive = true
+    void loadVocab().then(() => alive && setReady(true))
+    return () => {
+      alive = false
+    }
+  }, [needed, ready])
+  return ready || !needed
+}
+
 /** 每日 10 個多益單字：每天自動抽題（含間隔複習），並把新單字加入單字卡。 */
 export function useDailyWords() {
   const today = toDateKey()
@@ -37,25 +57,29 @@ export function useDailyWords() {
   const [cards, setCards] = useLocalStorage<Card[]>(FLASHCARDS_KEY, [])
   const [stats, setStats] = useWordStats()
   const [level] = useWordLevel()
+  const [source] = useWordSource()
+  // 今天抽到的字裡有字表單字，或來源是字表，都要等字表載入
+  const vocabReady = useVocabReady(needsVocab(source) || daily.ids.some(id => id.startsWith('vocab-')))
 
   useEffect(() => {
-    if (daily.date === today) return
+    if (daily.date === today || !vocabReady) return
     // 以日期當亂數種子，重複執行也會抽到同一組單字
     const { ids, review } = pickDailyWords({
       dateKey: today,
       learnedIds: new Set(cards.map(c => c.id)),
       stats,
       maxLevel: level,
+      pool: vocabPool(source) ?? undefined,
     })
     setDaily({ date: today, ids, review, answered: {} })
     setCards(prev => {
       const have = new Set(prev.map(c => c.id))
-      return [...prev, ...TOEIC_WORDS.filter(w => ids.includes(w.id) && !have.has(w.id))]
+      return [...prev, ...ids.map(findCard).filter(c => c !== undefined && !have.has(c.id))] as typeof prev
     })
-  }, [today, daily.date, cards, stats, level, setDaily, setCards])
+  }, [today, daily.date, cards, stats, level, source, vocabReady, setDaily, setCards])
 
-  const ready = daily.date === today
-  const words = ready ? daily.ids.map(id => TOEIC_WORDS.find(w => w.id === id)).filter(w => w !== undefined) : []
+  const ready = daily.date === today && vocabReady
+  const words = ready ? daily.ids.map(id => findCard(id)).filter(w => w !== undefined) : []
   const answeredCount = words.filter(w => w.id in daily.answered).length
   const complete = words.length > 0 && answeredCount === words.length
 

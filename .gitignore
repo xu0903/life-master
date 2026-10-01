@@ -25,3 +25,6 @@ dist-ssr
 
 # Supabase CLI 暫存檔
 supabase/.temp
+
+# 官方字表 PDF 與產生單字時的暫存（字表著作權屬原單位，不放進版本庫）
+wordlists/

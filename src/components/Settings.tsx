@@ -4,7 +4,8 @@ import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Tras
 import { HABIT_COLORS, HABIT_ICONS, VOCAB_HABIT, habitColor, habitIcon } from '../data/habits'
 import type { Habit, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
-import { useWordLevel } from '../hooks/useDailyWords'
+import { useVocabReady, useWordLevel, useWordSource } from '../hooks/useDailyWords'
+import { CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntries } from '../data/vocab'
 import { useHabits } from '../hooks/useHabits'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
 import Diagnostics from './Diagnostics'
@@ -355,6 +356,83 @@ function AppIconPicker() {
         </ul>
         {standalone && <p className="font-semibold">你現在是從主畫面 App 開啟的，在這裡選的圖示只會影響 App 內的顯示。</p>}
       </div>
+    </div>
+  )
+}
+
+function WordSourcePicker() {
+  const [source, setSource] = useWordSource()
+  const [level, setLevel] = useWordLevel()
+  const vocabReady = useVocabReady(source.list !== 'toeic')
+  const entries = vocabReady ? vocabEntries() : null
+
+  const allLists = [
+    { value: 'toeic', label: '多益' },
+    { value: 'ceec', label: '學測 7000' },
+    { value: 'gept', label: '全民英檢' },
+  ] as const
+  // 英檢字表要等 LTTC 授權才會放進資料；資料裡沒有英檢字表時不顯示這個選項
+  const lists = allLists.filter(l => l.value !== 'gept' || hasGept())
+  const levels = source.list === 'ceec' ? CEEC_LEVELS : GEPT_LEVELS
+  const count = (min: number, max: number) =>
+    entries?.filter(e => {
+      const lv = source.list === 'ceec' ? e.ceec : e.gept
+      return lv >= min && lv <= max
+    }).length
+
+  const pickList = (list: (typeof lists)[number]['value']) =>
+    setSource(list === 'toeic' ? { list } : { list, min: 1, max: list === 'ceec' ? 6 : 3 })
+
+  return (
+    <div className="space-y-3">
+      <Segmented value={source.list} options={[...lists]} onChange={pickList} />
+
+      {source.list === 'toeic' ? (
+        <div className="space-y-2">
+          {LEVELS.map(l => (
+            <button
+              key={l.value}
+              onClick={() => setLevel(l.value)}
+              className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition ${
+                level === l.value ? 'bg-primary-soft ring-2 ring-primary' : 'bg-surface-2'
+              }`}
+            >
+              <span>
+                <span className={`font-semibold ${level === l.value ? 'text-primary-ink' : 'text-fg'}`}>{l.label}</span>
+                <span className="ml-2 text-xs text-muted">{l.desc}</span>
+              </span>
+              <span className="text-xs text-muted">{WORD_INFO.filter(w => w.level <= l.value).length} 字</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted">點選要練的級別範圍（點起點再點終點）</p>
+          <div className={`grid gap-2 ${levels.length === 6 ? 'grid-cols-6' : 'grid-cols-3'}`}>
+            {levels.map(l => {
+              const inRange = l.value >= source.min && l.value <= source.max
+              return (
+                <button
+                  key={l.value}
+                  onClick={() => {
+                    // 點在範圍外 → 擴大範圍；點範圍的端點 → 只留這一級
+                    if (l.value < source.min) setSource({ ...source, min: l.value })
+                    else if (l.value > source.max) setSource({ ...source, max: l.value })
+                    else setSource({ ...source, min: l.value, max: l.value })
+                  }}
+                  className={`rounded-xl py-2.5 text-sm transition ${inRange ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
+                >
+                  {l.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-sm text-fg">
+            {sourceLabel(source)}：{entries ? `${count(source.min, source.max)} 字` : '字表載入中…'}
+          </p>
+          <p className="text-[11px] leading-relaxed text-faint">{VOCAB_CREDIT}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -711,7 +789,6 @@ function CheckinReminder({ pushOn }: { pushOn: boolean }) {
 }
 
 export default function Settings({ themeId, onThemeChange }: { themeId: string; onThemeChange: (id: string) => void }) {
-  const [level, setLevel] = useWordLevel()
 
   return (
     <div className="space-y-4">
@@ -731,27 +808,8 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
         <NotificationPanel />
       </Section>
 
-      <Section title="🎯 多益目標分數" desc="決定每日新字的難度範圍，明天抽題起生效">
-        <div className="space-y-2">
-          {LEVELS.map(l => {
-            const count = WORD_INFO.filter(w => w.level <= l.value).length
-            return (
-              <button
-                key={l.value}
-                onClick={() => setLevel(l.value)}
-                className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition ${
-                  level === l.value ? 'bg-primary-soft ring-2 ring-primary' : 'bg-surface-2'
-                }`}
-              >
-                <span>
-                  <span className={`font-semibold ${level === l.value ? 'text-primary-ink' : 'text-fg'}`}>{l.label}</span>
-                  <span className="ml-2 text-xs text-muted">{l.desc}</span>
-                </span>
-                <span className="text-xs text-muted">{count} 字</span>
-              </button>
-            )
-          })}
-        </div>
+      <Section title="🎯 每日單字" desc="選擇每日 10 字與刷題題庫的範圍，明天抽題起生效">
+        <WordSourcePicker />
       </Section>
 
       <Section title="📅 多益考試日期" desc="設定後會在習慣打卡頁顯示倒數天數">
@@ -765,6 +823,16 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
       <Section title="💾 資料備份" desc="資料存在這台裝置的瀏覽器裡；開啟雲端備份，或定期匯出檔案，清除 Safari 資料或換手機時才不會遺失">
         <CloudBackup />
         <Backup />
+      </Section>
+
+      <Section title="📄 來源與授權">
+        <ul className="list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-muted">
+          <li>TOEIC® is a registered trademark of ETS. This product is not endorsed or approved by ETS. 本 App 為非官方的多益練習工具。</li>
+          <li>閱讀、聽力、文法題目與解析皆為原創，非 ETS 官方試題；部分內容以 AI 輔助編寫，若發現錯誤歡迎回報。</li>
+          <li>聽力語音為 AI 合成，非真人錄音。</li>
+          <li>{VOCAB_CREDIT}</li>
+          <li>App 圖示以 AI 影像工具生成。</li>
+        </ul>
       </Section>
 
       <Section title="🩺 環境檢查" desc="收不到通知或資料一直消失時，看這裡哪一項是紅字；也可以複製結果傳給開發者">

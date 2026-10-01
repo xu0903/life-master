@@ -59,6 +59,7 @@ function Player({ group, rate, voices }: { group: ListeningGroup; rate: number; 
       <span>
         <span className="block text-lg font-bold">{playing ? '播放中…' : plays > 0 ? '再聽一次' : '播放音檔'}</span>
         <span className="block text-sm opacity-90">{plays > 0 ? `已播放 ${plays} 次（正式考試只播一次）` : '先看題目再播放，效果更好'}</span>
+        <span className="block text-[11px] opacity-75">AI 合成語音</span>
       </span>
     </button>
   )
@@ -272,7 +273,7 @@ export default function Listening() {
         <p className="flex items-center gap-1.5 font-semibold text-fg">
           <Headphones className="h-5 w-5 text-primary-ink" /> 聽力練習
         </p>
-        <p className="mt-0.5 mb-3 text-xs text-faint">請關閉靜音模式並調高音量</p>
+        <p className="mt-0.5 mb-3 text-xs text-faint">語音為 AI 合成，非真人錄音・請關閉靜音模式並調高音量</p>
         <div className="mb-1 flex gap-2">
           {LISTENING_TESTS.map(t => (
             <button

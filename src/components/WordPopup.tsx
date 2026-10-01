@@ -4,7 +4,7 @@ import { ArrowLeft, X } from 'lucide-react'
 import CardActions from './CardActions'
 import SpeakButtons from './SpeakButtons'
 import WordDetail from './WordDetail'
-import { TOEIC_WORDS, lookupWord } from '../data/toeicWords'
+import { cardForWord, lookupWord } from '../data/toeicWords'
 import { WordPopupContext } from '../hooks/useWordPopup'
 import { isEnglish } from '../utils/speech'
 
@@ -16,7 +16,7 @@ export default function WordPopupProvider({ children }: { children: ReactNode })
   const [stack, setStack] = useState<string[]>([])
   const word = stack[stack.length - 1]
   const info = word ? lookupWord(word) : undefined
-  const card = info ? TOEIC_WORDS.find(c => c.id === `toeic-${info.word}`) : undefined
+  const card = info ? cardForWord(info.word) : undefined
 
   const open = (w: string) => setStack(prev => (prev[prev.length - 1] === w ? prev : [...prev, w]))
   const back = () => setStack(prev => prev.slice(0, -1))

@@ -19,7 +19,7 @@ type TabId = 'habits' | 'todos' | 'flashcards' | 'rooms' | 'stats' | 'settings'
 const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: 'habits', label: '習慣打卡', Icon: Flame },
   { id: 'todos', label: '待辦清單', Icon: ListTodo },
-  { id: 'flashcards', label: '單字卡', Icon: BookOpenCheck },
+  { id: 'flashcards', label: '學習', Icon: BookOpenCheck },
   { id: 'rooms', label: '夥伴', Icon: Users },
   { id: 'stats', label: '統計', Icon: BarChart3 },
   { id: 'settings', label: '設定', Icon: SettingsIcon },

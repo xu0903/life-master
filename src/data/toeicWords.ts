@@ -185,6 +185,8 @@ export const WORD_INFO: WordInfo[] = ALL.map(([level, [word, kk, pos, zh, def, s
 }))
 
 const BY_WORD = new Map(WORD_INFO.map(w => [w.word.toLowerCase(), w]))
+/** 學測 / 英檢字表載入後加進來的卡片（id → 卡片） */
+const EXTRA_CARDS = new Map<string, Card>()
 
 /** 查詢單字資料（不分大小寫），自己新增的卡片若是題庫內的字也查得到。 */
 export function lookupWord(word: string): WordInfo | undefined {
@@ -215,6 +217,26 @@ export const TOEIC_WORDS: Card[] = WORD_INFO.map(w => ({
   answer: `(${w.pos}) ${w.zh}`,
   source: 'toeic',
 }))
+
+const TOEIC_BY_ID = new Map(TOEIC_WORDS.map(c => [c.id, c]))
+
+/** 加入字表的單字：查單字時找得到，抽每日單字時也能用 id 找回卡片。多益題庫原有的資料優先。 */
+export function registerWords(words: { card: Card; info: WordInfo }[]) {
+  for (const { card, info } of words) {
+    if (!BY_WORD.has(info.word.toLowerCase())) BY_WORD.set(info.word.toLowerCase(), info)
+    if (!TOEIC_BY_ID.has(card.id)) EXTRA_CARDS.set(card.id, card)
+  }
+}
+
+/** 用 id 找題庫卡片（多益或已載入的字表） */
+export function findCard(id: string): Card | undefined {
+  return TOEIC_BY_ID.get(id) ?? EXTRA_CARDS.get(id)
+}
+
+/** 用單字找題庫卡片 */
+export function cardForWord(word: string): Card | undefined {
+  return TOEIC_BY_ID.get(`toeic-${word}`) ?? EXTRA_CARDS.get(`vocab-${word}`)
+}
 
 /** 由字串產生固定的亂數產生器，讓同一天抽到的單字永遠相同。 */
 function seededRandom(seed: string) {
@@ -335,20 +357,23 @@ export function pickDailyWords(opts: {
   learnedIds: Set<string>
   stats: Record<string, WordStat>
   maxLevel: Level
+  /** 指定抽題範圍（學測 / 英檢字表）；沒給就用多益題庫依目標分數抽 */
+  pool?: Card[]
   count?: number
   reviewMax?: number
 }): DailyPick {
-  const { dateKey, learnedIds, stats, maxLevel, count = 10, reviewMax = 4 } = opts
+  const { dateKey, learnedIds, stats, maxLevel, pool, count = 10, reviewMax = 4 } = opts
   const random = seededRandom(dateKey)
 
   const due = Object.entries(stats)
-    .filter(([id, s]) => s.due <= dateKey && LEVEL_OF.has(id))
+    .filter(([id, s]) => s.due <= dateKey && findCard(id) !== undefined)
     .sort(([, a], [, b]) => a.box - b.box || a.due.localeCompare(b.due))
     .map(([id]) => id)
 
   const review = due.slice(0, reviewMax)
+  const candidates = pool ?? TOEIC_WORDS.filter(w => (LEVEL_OF.get(w.id) ?? 600) <= maxLevel)
   const fresh = shuffle(
-    TOEIC_WORDS.filter(w => !learnedIds.has(w.id) && !(w.id in stats) && (LEVEL_OF.get(w.id) ?? 600) <= maxLevel),
+    candidates.filter(w => !learnedIds.has(w.id) && !(w.id in stats)),
     random,
   ).map(w => w.id)
 
@@ -359,7 +384,7 @@ export function pickDailyWords(opts: {
     review.push(id)
   }
   if (ids.length < count) {
-    const rest = shuffle(TOEIC_WORDS.filter(w => !ids.includes(w.id)), random).map(w => w.id)
+    const rest = shuffle((pool ?? TOEIC_WORDS).filter(w => !ids.includes(w.id)), random).map(w => w.id)
     ids.push(...rest.slice(0, count - ids.length))
   }
   return { ids: shuffle(ids, random), review }

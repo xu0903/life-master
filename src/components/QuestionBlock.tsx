@@ -1,6 +1,6 @@
 import { Check, X } from 'lucide-react'
 import type { ReadingQuestion } from '../data/reading'
-import { TOEIC_WORDS, lookupInflected } from '../data/toeicWords'
+import { cardForWord, lookupInflected } from '../data/toeicWords'
 import { useDecks } from '../hooks/useCards'
 import { useWordPopup } from '../hooks/useWordPopup'
 
@@ -25,7 +25,7 @@ export function LookupText({ text }: { text: string }) {
             onClick={e => {
               e.stopPropagation()
               open(info.word)
-              const card = TOEIC_WORDS.find(w => w.id === `toeic-${info.word}`)
+              const card = cardForWord(info.word)
               if (card) addToFixedDeck(READING_DECK.id, READING_DECK.name, card)
             }}
             className="cursor-pointer underline decoration-primary/40 decoration-dotted underline-offset-4"

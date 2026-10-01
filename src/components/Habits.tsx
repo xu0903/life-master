@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Bell, CalendarClock, Check, ChevronRight, Flame, Minus, Plus, Settings2 } from 'lucide-react'
 import DailyQuiz from './DailyQuiz'
 import { VOCAB_HABIT, habitColor, habitIcon, habitStreak, isHabitDone, weekCount } from '../data/habits'
-import { useDailyWords } from '../hooks/useDailyWords'
+import { useDailyWords, useWordSource } from '../hooks/useDailyWords'
+import { sourceLabel } from '../data/vocab'
 import { useHabits } from '../hooks/useHabits'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { addDays, diffDays, toDateKey } from '../utils/date'
@@ -15,6 +16,7 @@ export default function Habits({ onManage }: { onManage: () => void }) {
   const [quizPromptDate, setQuizPromptDate] = useLocalStorage('lifemaster.quizPromptDate', '')
   const [quizOpen, setQuizOpen] = useState(false)
   const daily = useDailyWords()
+  const [wordSource] = useWordSource()
   const today = toDateKey()
 
   // 每日測驗做完 → 自動打卡背單字
@@ -64,7 +66,7 @@ export default function Habits({ onManage }: { onManage: () => void }) {
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft text-2xl">📖</div>
           <div className="flex-1">
-            <p className="font-semibold text-fg">每日多益 10 字</p>
+            <p className="font-semibold text-fg">每日{sourceLabel(wordSource)} 10 字</p>
             <p className="text-sm text-muted">
               {daily.complete
                 ? '今天已完成，點擊複習'

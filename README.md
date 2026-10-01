@@ -10,6 +10,8 @@
 - **單字卡**：自訂題目、翻牌測驗、依多益 / 自訂 / 不熟篩選
 - **多益閱讀測驗**：兩份原創模擬試題（Part 5–7 各 100 題），可計時模擬考或分題型練習，附中文解析
 - **夥伴房間**：建立房間、用邀請碼加入，互看今日進度並互相督促（需設定 Supabase，見 `supabase/README.md`）
+- **學測 7000 單**：每日單字可選多益或學測 1–6 級（單字與級別取自大考中心字表，中文解釋與例句為本 App 另行編寫）；英檢字表待取得授權後開放
+- **多益文法 20 單元**：重點講解、例句、小測驗，並依閱讀弱點推薦單元
 - **多益聽力練習**：Part 2–4 共 94 題，用裝置語音朗讀，對答案後顯示逐字稿
 - **弱點分析與錯題本**：依考點統計答對率，錯題自動收集重練；另有每日 10 題
 - **番茄鐘、考試倒數、本週回顧**
@@ -31,3 +33,19 @@ npm run deploy   # 建置並發佈到 GitHub Pages（gh-pages 分支）
 ```
 
 App 圖示由九宮格圖 `design/icon-sheet.png` 切出來：`node scripts/split-icons.mjs`（輸出到 `public/icons/`，並以第 8 格覆蓋預設的 PWA 圖示）
+
+## 內容產生腳本
+
+- `python scripts/parse-wordlists.py`：從 `wordlists/` 裡的官方字表 PDF 抽出單字與級別（PDF 不放進版本庫，請自行從大考中心與 LTTC 官網下載）
+- `npx tsx scripts/enrich-words.ts`：用 OpenAI 補上中文解釋、英英解釋與例句，輸出 `src/data/vocab.json`
+- `npx tsx scripts/gen-audio.ts`：產生聽力題的語音檔（`public/audio/`）
+- 以上需要在 `.env.local` 放 `OPENAI_API_KEY`
+
+## 內容來源與授權
+
+每一項資料來源、AI 產出與第三方服務的使用條款，整理在 [docs/content-sources.md](docs/content-sources.md)。重點：
+
+- 學測字表：大學入學考試中心《高中英文參考詞彙表》，僅供非營利使用並須註明出處；營利須事先取得書面授權。
+- 全民英檢字表：LTTC 網站明文禁止未經同意重製，取得授權前公開版不收錄（`INCLUDE_GEPT=1` 才會輸出）。
+- TOEIC® is a registered trademark of ETS. This product is not endorsed or approved by ETS.
+- 聽力語音為 AI 合成（OpenAI），App 內已標示。

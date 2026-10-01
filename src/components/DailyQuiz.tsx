@@ -38,7 +38,7 @@ export default function DailyQuiz({ words, answered, reviewIds, onAnswer, onClos
       >
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-lg font-bold text-fg">📖 每日多益單字</p>
+            <p className="text-lg font-bold text-fg">📖 每日單字</p>
             <p className="text-sm text-muted">
               {answeredCount} / {words.length} 題
             </p>

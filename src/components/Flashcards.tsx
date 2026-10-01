@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Pencil, Plus, SkipForward, Star, Trash2 } from 'lucide-react'
 import CardActions from './CardActions'
 import FlipCard from './FlipCard'
+import Grammar from './Grammar'
 import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
 import Practice from './Practice'
@@ -37,7 +38,7 @@ export default function Flashcards() {
   const [stats, setStats] = useWordStats()
   const today = toDateKey()
   // 閱讀測驗寫到一半離開的話，回來直接接著寫
-  const [mode, setMode] = useState<'flip' | 'practice' | 'reading' | 'listening'>(() => {
+  const [mode, setMode] = useState<'flip' | 'practice' | 'reading' | 'listening' | 'grammar'>(() => {
     try {
       return (localStorage.getItem('lifemaster.readingSession') ?? 'null') !== 'null' ? 'reading' : 'flip'
     } catch {
@@ -57,7 +58,8 @@ export default function Flashcards() {
     if (f === 'fav') return cards.filter(c => favorites.includes(c.id))
     if (f === 'wrong') return wrongIds.map(id => cards.find(c => c.id === id)).filter(c => c !== undefined)
     if (f === 'toeic') return cards.filter(c => c.source === 'toeic')
-    if (f === 'custom') return cards.filter(c => c.source !== 'toeic')
+    if (f === 'vocab') return cards.filter(c => c.source === 'vocab')
+    if (f === 'custom') return cards.filter(c => !c.source)
     if (f.startsWith('deck:')) {
       const deck = decks.find(d => `deck:${d.id}` === f)
       return deck ? cards.filter(c => deck.cardIds.includes(c.id)) : []
@@ -70,6 +72,7 @@ export default function Flashcards() {
     { id: 'fav', label: '⭐ 最愛' },
     { id: 'wrong', label: '❌ 最近常錯' },
     { id: 'toeic', label: '多益' },
+    { id: 'vocab', label: '學測・英檢' },
     { id: 'custom', label: '自訂' },
     ...decks.map(d => ({ id: `deck:${d.id}`, label: `📁 ${d.name}` })),
   ]
@@ -151,6 +154,7 @@ export default function Flashcards() {
           ['practice', '刷題'],
           ['reading', '閱讀'],
           ['listening', '聽力'],
+          ['grammar', '文法'],
         ] as const
       ).map(([m, label]) => (
         <button
@@ -165,6 +169,15 @@ export default function Flashcards() {
       ))}
     </div>
   )
+
+  if (mode === 'grammar') {
+    return (
+      <div className="space-y-4">
+        {modeSwitch}
+        <Grammar />
+      </div>
+    )
+  }
 
   if (mode === 'listening') {
     return (

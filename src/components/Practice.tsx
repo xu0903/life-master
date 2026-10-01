@@ -8,7 +8,8 @@ import { QUESTION_TYPES, buildQuiz, isClozeCorrect, meaningOf, pickCards } from 
 import type { Question, QuestionType } from '../data/practice'
 import { TOEIC_WORDS, WORD_INFO, lookupWord, nextStat } from '../data/toeicWords'
 import { useCards } from '../hooks/useCards'
-import { useWordLevel, useWordStats } from '../hooks/useDailyWords'
+import { sourceLabel, vocabPool } from '../data/vocab'
+import { useVocabReady, useWordLevel, useWordSource, useWordStats } from '../hooks/useDailyWords'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import { useWordPopup } from '../hooks/useWordPopup'
 import { toDateKey } from '../utils/date'
@@ -49,10 +50,13 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
   const [{ accent, autoSpeak }] = useSpeechSettings()
   const { open } = useWordPopup()
 
+  const [wordSource] = useWordSource()
+  const vocabReady = useVocabReady(wordSource.list !== 'toeic')
+  // 題庫範圍跟著設定裡的「每日單字來源」
   const bank: PracticeSource = {
     id: 'bank',
-    label: '📚 多益題庫',
-    cards: TOEIC_WORDS.filter((_, i) => WORD_INFO[i].level <= level),
+    label: `${sourceLabel(wordSource)}題庫`,
+    cards: (vocabReady && vocabPool(wordSource)) || TOEIC_WORDS.filter((_, i) => WORD_INFO[i].level <= level),
   }
   const allSources = [bank, ...sources.filter(s => s.cards.length > 0)]
 
