@@ -134,4 +134,6 @@ export interface ListeningRecord {
   part: ListeningPart
   correct: number
   total: number
+  /** 考試模式（只播一次、限時作答） */
+  exam?: boolean
 }
