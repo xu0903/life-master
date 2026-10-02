@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Check, Download, Monitor, Pencil, Plus, Share, Trash2, Upload, Volume2, X } from 'lucide-react'
-import { ACTIVITY_LINKS, HABIT_COLORS, HABIT_ICONS, HABIT_KINDS, VOCAB_HABIT, habitColor, habitIcon, habitKind, habitSummary } from '../data/habits'
+import {
+  ACTIVITY_LINKS,
+  HABIT_COLORS,
+  HABIT_ICONS,
+  HABIT_KINDS,
+  VOCAB_HABIT,
+  habitColor,
+  habitIcon,
+  habitKind,
+  habitSummary,
+  habitPlanLink,
+} from '../data/habits'
 import type { ActivityLink, Habit, HabitKind, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useVocabReady, useWordLevel, useWordSource } from '../hooks/useDailyWords'
@@ -10,6 +21,7 @@ import { useHabits } from '../hooks/useHabits'
 import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
 import Guide from './Guide'
+import AccountPanel from './AccountPanel'
 import { APP_VERSION, formatBuildTime } from '../version'
 import { AutoNextToggle, DifficultyPicker } from './Practice'
 import Diagnostics from './Diagnostics'
@@ -137,6 +149,7 @@ function HabitEditor({ initial, onSave, onCancel }: { initial?: Habit; onSave: (
   const [perSet, setPerSet] = useState(String(initial?.perSet ?? ''))
   const [link, setLink] = useState<ActivityLink | ''>(initial?.link ?? '')
   const [remindTime, setRemindTime] = useState(initial?.remindTime ?? '')
+  const [planLink, setPlanLink] = useState<'toeic' | 'none'>(initial && habitPlanLink(initial) === 'toeic' ? 'toeic' : 'none')
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'health')
   const [color, setColor] = useState(initial ? (Object.keys(HABIT_COLORS).find(k => HABIT_COLORS[k] === habitColor(initial)) ?? 'indigo') : 'indigo')
@@ -154,6 +167,7 @@ function HabitEditor({ initial, onSave, onCancel }: { initial?: Habit; onSave: (
       icon,
       color,
       remindTime: remindTime || undefined,
+      planLink,
       weeklyTarget: !isVocab && weekly > 0 ? weekly : undefined,
       kind: undefined,
       target: undefined,
@@ -330,6 +344,14 @@ function HabitEditor({ initial, onSave, onCancel }: { initial?: Habit; onSave: (
                   每週 {n} 次
                 </option>
               ))}
+            </select>,
+          )}
+        {!isVocab &&
+          row(
+            '連動菜單',
+            <select value={planLink} onChange={e => setPlanLink(e.target.value as 'toeic' | 'none')} className={fieldClass}>
+              <option value="none">不連動</option>
+              <option value="toeic">多益菜單</option>
             </select>,
           )}
         {row(
@@ -931,6 +953,9 @@ export default function Settings({ themeId, onThemeChange }: { themeId: string; 
   return (
     <div className="space-y-4">
       <VersionInfo />
+      <Section title="👤 帳號" desc="手機、平板登入同一個帳號，資料自動同步">
+        <AccountPanel />
+      </Section>
       <Section title="📖 使用指南" desc="用截圖一步一步介紹每個功能">
         <Guide />
       </Section>

@@ -4,6 +4,7 @@ import SpeakButtons from './SpeakButtons'
 import WordDetail from './WordDetail'
 import type { Card } from '../data/flashcards'
 import { lookupWord } from '../data/toeicWords'
+import type { WordInfo } from '../data/toeicWords'
 import { useWordStats } from '../hooks/useDailyWords'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import { useWordPopup } from '../hooks/useWordPopup'
@@ -22,7 +23,23 @@ interface FlipCardProps {
  * 換題時請給不同的 key，讓新卡片直接從正面開始，不會閃過答案（也會重置「第一次翻卡朗讀」）。
  */
 export default function FlipCard({ card, flipped, onFlip, badge }: FlipCardProps) {
-  const info = lookupWord(card.question)
+  const bank = lookupWord(card.question)
+  // 自己新增、有自訂內容的卡：用卡片上的意思、例句、同反義詞，沒填的才用題庫的
+  const custom = card.pos !== undefined || card.ex !== undefined || card.syn !== undefined
+  const info: WordInfo | undefined = custom
+    ? {
+        level: bank?.level ?? 900,
+        word: card.question,
+        kk: bank?.kk ?? '',
+        pos: card.pos ?? '',
+        zh: card.answer.replace(/^\([^)]*\)\s*/, ''),
+        def: bank?.def ?? '',
+        syn: card.syn ?? [],
+        ant: card.ant ?? [],
+        ex: card.ex ?? '',
+        exZh: card.exZh ?? '',
+      }
+    : bank
   const english = isEnglish(card.question)
   const [stats] = useWordStats()
   const [{ accent, autoSpeak }] = useSpeechSettings()
@@ -55,11 +72,7 @@ export default function FlipCard({ card, flipped, onFlip, badge }: FlipCardProps
         <div className={`${face} flex flex-col items-center justify-center gap-3 p-6 pt-8 pb-12`}>
           {strip}
           <span className="absolute top-4 left-5 text-xs font-semibold tracking-widest text-faint">Q</span>
-          {badge && (
-            <span className="absolute top-3.5 right-4 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-ink">
-              {badge}
-            </span>
-          )}
+          {badge && <span className="absolute top-3.5 right-4 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-ink">{badge}</span>}
           <p className="text-center text-3xl font-bold break-words text-primary-ink">{card.question}</p>
           {info && (
             <p className="text-sm text-muted">

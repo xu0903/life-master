@@ -8,6 +8,9 @@ import Stats from './components/Stats'
 import EnvBanner from './components/EnvBanner'
 import ReminderBanner from './components/ReminderBanner'
 import UpdateToast from './components/UpdateToast'
+import BadgeCelebration from './components/BadgeCelebration'
+import { PasswordRecovery } from './components/AccountPanel'
+import { usePlanHabitSync } from './hooks/usePlanHabitSync'
 import Rooms from './components/Rooms'
 import Settings from './components/Settings'
 import WordPopupProvider from './components/WordPopup'
@@ -45,6 +48,7 @@ export default function App() {
   const { themeId, setThemeId } = useTheme()
   useProgressSync()
   useCloudBackup()
+  usePlanHabitSync()
   const [, setLearnMode] = useLocalStorage('lifemaster.learnMode', 'flip')
   const [, setCardFilter] = useLocalStorage('lifemaster.cardFilter', 'all')
   const activeLabel = TABS.find(t => t.id === tab)?.label
@@ -67,6 +71,8 @@ export default function App() {
         <EnvBanner onOpenSettings={() => goTo('settings')} />
         <ReminderBanner onOpen={() => goTo('todos')} />
         <UpdateToast />
+        <BadgeCelebration />
+        <PasswordRecovery />
 
         <main className="px-4 pt-2">
           {tab === 'habits' && (

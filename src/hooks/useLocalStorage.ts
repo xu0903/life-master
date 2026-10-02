@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { touch } from '../utils/sync'
 
 /** 任何 lifemaster 資料寫入 localStorage 時發出 */
 export const SYNC_EVENT = 'lifemaster:storage'
@@ -32,6 +33,8 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       const serialized = JSON.stringify(value)
       if (localStorage.getItem(key) === serialized) return
       localStorage.setItem(key, serialized)
+      // 記下修改時間，帳號同步時用來判斷哪一邊比較新
+      touch(key)
       window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: key }))
     } catch {
       // 儲存空間已滿或被瀏覽器封鎖時忽略

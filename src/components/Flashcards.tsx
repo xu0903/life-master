@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
 import { Pencil, Plus, SkipForward, Star, Trash2 } from 'lucide-react'
 import CardActions from './CardActions'
 import FlipCard from './FlipCard'
@@ -8,18 +7,19 @@ import Grammar from './Grammar'
 import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
 import Practice from './Practice'
+import AddCardSheet from './AddCardSheet'
 import Reading from './Reading'
 import StudyPlan from './StudyPlan'
 import { CARD_FILTER_KEY } from '../data/flashcards'
 import type { Card } from '../data/flashcards'
-import { MAX_BOX, TOEIC_WORDS, WORD_INFO, lookupWord, nextStat, recentWrongIds } from '../data/toeicWords'
+import { MAX_BOX, TOEIC_WORDS, WORD_INFO, nextStat, recentWrongIds } from '../data/toeicWords'
 import { TOEIC_TOPICS, cardsInTopic } from '../data/toeicTopics'
 import { vocabPool } from '../data/vocab'
 import type { Grade } from '../data/toeicWords'
 import { useCards, useDecks } from '../hooks/useCards'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useVocabReady, useWordLevel, useWordStats } from '../hooks/useDailyWords'
-import { newId, toDateKey } from '../utils/date'
+import { toDateKey } from '../utils/date'
 
 /** 學習分頁目前的模式（首頁「去練習」也會切換它） */
 export type LearnMode = 'plan' | 'flip' | 'practice' | 'reading' | 'listening' | 'grammar' | 'dict'
@@ -55,8 +55,7 @@ export default function Flashcards() {
   const [filter, setFilter] = useLocalStorage<Filter>(CARD_FILTER_KEY, 'all')
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [flipped, setFlipped] = useState(false)
-  const [question, setQuestion] = useState('')
-  const [answer, setAnswer] = useState('')
+  const [adding, setAdding] = useState(false)
 
   const wrongIds = recentWrongIds(stats, today)
   const activeDeck = filter.startsWith('deck:') ? decks.find(d => `deck:${d.id}` === filter) : undefined
@@ -121,21 +120,12 @@ export default function Flashcards() {
     show(null)
   }
 
-  const addCard = (e: FormEvent) => {
-    e.preventDefault()
-    const q = question.trim()
-    const info = lookupWord(q)
-    // 題庫裡有的字可以不填答案，自動帶入
-    const a = answer.trim() || (info ? `(${info.pos}) ${info.zh}` : '')
-    if (!q || !a) return
-    const card: Card = { id: newId(), question: q, answer: a }
-    setCards(prev => [...prev, card])
+  const addCard = (card: Card) => {
+    ensureCard(card)
     // 正在看某個卡組 / 最愛時，新卡片直接收進去
-    if (activeDeck) toggleInDeck(activeDeck.id, card)
-    if (effectiveFilter === 'fav') toggleFavorite(card)
-    if (!current) setCurrentId(card.id)
-    setQuestion('')
-    setAnswer('')
+    if (activeDeck && !activeDeck.cardIds.includes(card.id)) toggleInDeck(activeDeck.id, card)
+    if (effectiveFilter === 'fav' && !isFavorite(card.id)) toggleFavorite(card)
+    show(card.id)
   }
 
   const deleteCard = (card: Card) => {
@@ -143,9 +133,6 @@ export default function Flashcards() {
     setCards(prev => prev.filter(c => c.id !== card.id))
     forgetCard(card.id)
   }
-
-  const inputClass =
-    'w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-base text-fg outline-none placeholder:text-faint focus:border-primary focus:ring-2 focus:ring-primary/20'
 
   const emptyText =
     cards.length === 0
@@ -321,34 +308,23 @@ export default function Flashcards() {
         <p className="rounded-2xl bg-surface px-6 py-16 text-center text-faint shadow-sm">{emptyText}</p>
       )}
 
-      <form onSubmit={addCard} className="space-y-3 rounded-2xl bg-surface p-4 shadow-sm">
-        <p className="font-semibold text-fg">
-          新增單字卡
-          {activeDeck && <span className="ml-1 text-xs font-normal text-muted">（會收進「{activeDeck.name}」）</span>}
-        </p>
-        <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="題目 (Q)" className={inputClass} />
-        <input
-          value={answer}
-          onChange={e => setAnswer(e.target.value)}
-          placeholder={lookupWord(question) ? '答案 (A)：可留空，自動帶入題庫解釋' : '答案 (A)'}
-          className={inputClass}
-        />
-        <button
-          type="submit"
-          className="flex w-full items-center justify-center gap-1 rounded-xl bg-primary py-2.5 font-medium text-on-primary transition active:scale-[0.98]"
-        >
-          <Plus className="h-5 w-5" /> 新增
-        </button>
-      </form>
+      <button
+        onClick={() => setAdding(true)}
+        className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-surface py-3.5 font-semibold text-primary-ink shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]"
+      >
+        <Plus className="h-5 w-5" /> 新增單字卡
+        {activeDeck && <span className="text-xs font-normal text-muted">（收進「{activeDeck.name}」）</span>}
+      </button>
+      {adding && <AddCardSheet onAdd={addCard} onClose={() => setAdding(false)} deckName={activeDeck?.name} />}
 
       {visible.length > 0 && (
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
           <p className="font-semibold text-fg">
             {filters.find(f => f.id === effectiveFilter)?.label}（{visible.length}）
           </p>
-          <p className="mb-2 text-xs text-faint">點單字可以直接顯示在上方卡片</p>
+          <p className="mb-2 text-xs text-faint">點單字可以直接顯示在上方卡片{visible.length > 200 && `・只列出前 200 個`}</p>
           <ul className="divide-y divide-line">
-            {visible.map(card => (
+            {visible.slice(0, 200).map(card => (
               <li key={card.id} className="flex items-center gap-2 py-2.5">
                 <button
                   onClick={() => {

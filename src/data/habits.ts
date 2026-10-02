@@ -1,21 +1,4 @@
-import {
-  Apple,
-  Bike,
-  BookOpen,
-  Brain,
-  Coffee,
-  Droplet,
-  Dumbbell,
-  Footprints,
-  Heart,
-  Languages,
-  Leaf,
-  Moon,
-  Music,
-  PenLine,
-  Pill,
-  Sun,
-} from 'lucide-react'
+import { Apple, Bike, BookOpen, Brain, Coffee, Droplet, Dumbbell, Footprints, Heart, Languages, Leaf, Moon, Music, PenLine, Pill, Sun } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { addDays, calcStreak, toDateKey, weekKeys } from '../utils/date'
 
@@ -46,7 +29,12 @@ export interface Habit {
   counts?: Record<string, number>
   /** 每天提醒時間 HH:mm（需開啟背景推播） */
   remindTime?: string
+  /** 連動菜單：菜單項目完成時自動記到這個習慣（時間型記分鐘，其他類型完成全部項目就打卡）；'none' = 不連動 */
+  planLink?: 'toeic' | 'none'
 }
+
+/** 這個習慣連動哪個菜單；舊資料沒設定時，「讀書」預設連動多益菜單 */
+export const habitPlanLink = (h: Habit) => (h.planLink === 'none' ? undefined : (h.planLink ?? (h.icon === 'read' ? 'toeic' : undefined)))
 
 /** 習慣卡上的計時器（運動、讀書等「時間」習慣）；同一時間只會有一個在跑 */
 export const HABIT_TIMER_KEY = 'lifemaster.habitTimer'
@@ -78,7 +66,7 @@ export const ACTIVITY_LINKS: { value: ActivityLink; label: string; unit: string 
 /** 新增 / 編輯習慣時可以設定的欄位 */
 export type HabitSettings = Pick<
   Habit,
-  'name' | 'icon' | 'color' | 'weeklyTarget' | 'kind' | 'target' | 'unit' | 'step' | 'bottleMl' | 'perSet' | 'link' | 'remindTime'
+  'name' | 'icon' | 'color' | 'weeklyTarget' | 'kind' | 'target' | 'unit' | 'step' | 'bottleMl' | 'perSet' | 'link' | 'remindTime' | 'planLink'
 >
 
 export function habitKind(h: Habit): HabitKind {
