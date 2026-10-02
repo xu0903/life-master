@@ -48,10 +48,17 @@ export default defineConfig(({ command }) => ({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         // 9 款可選圖示只在設定頁用到，不必全部預先快取
         // 單字資料很大（好幾 MB），不放進每次更新都要重新下載的預先快取，第一次用到時再存起來（檔名有雜湊，內容變了檔名就會變）
-        globIgnores: ['icons/**', 'assets/vocab-*.js', 'assets/toeic-extra-*.js', 'assets/toeic-core-topics-*.js', 'assets/advanced-*.js'],
+        globIgnores: [
+          'icons/**',
+          'assets/vocab-*.js',
+          'assets/toeic-extra-*.js',
+          'assets/toeic-core-topics-*.js',
+          'assets/advanced-*.js',
+          'assets/reading-bank-*.js',
+        ],
         runtimeCaching: [
           {
-            urlPattern: /\/assets\/(vocab|toeic-extra|toeic-core-topics|advanced)-[\w-]+\.js$/,
+            urlPattern: /\/assets\/(vocab|toeic-extra|toeic-core-topics|advanced|reading-bank)-[\w-]+\.js$/,
             handler: 'CacheFirst',
             options: { cacheName: 'word-data', expiration: { maxEntries: 20 } },
           },

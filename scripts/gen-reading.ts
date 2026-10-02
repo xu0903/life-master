@@ -1,14 +1,17 @@
-// 產生閱讀題：3 份完整模擬試題（4–6）＋ Part 5 題庫 ＋ Part 6 題庫，輸出 src/data/reading-extra.json。
+// 產生閱讀題：3 份完整模擬試題（4–6）＋ Part 5 題庫 ＋ Part 6 題庫，輸出 src/data/reading-tests-extra.json 與 reading-bank.json。
 // 每題都會再請模型「不看答案」重做一次，答案對不上、或有兩個選項都說得通的題目直接淘汰。
 // 執行：npx tsx scripts/gen-reading.ts（產生過的會快取在 wordlists/reading-cache.json，中斷後重跑只補沒做完的）
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { RawQuestion, RawSet, RawTest } from '../src/data/reading'
 
 const MODEL = 'gpt-4.1'
-const CONCURRENCY = 6
+// gpt-4.1 這個帳號每分鐘只能用 3 萬 token，同時送太多會被擋
+const CONCURRENCY = 2
 const CACHE = 'wordlists/reading-cache.json'
-const OUT = 'src/data/reading-extra.json'
-const P5_BANK_BATCHES = 40 // 每批 20 題，淘汰後約 700 題
+// 試題跟著 App 一起載入；題庫比較大，另存一個檔案，用到時才下載
+const OUT_TESTS = 'src/data/reading-tests-extra.json'
+const OUT_BANK = 'src/data/reading-bank.json'
+const P5_BANK_BATCHES = 75 // 每批 20 題，淘汰重複與有問題的題目後約 900 題
 const P6_BANK_SETS = 100
 
 const key = readFileSync('.env.local', 'utf8')
@@ -43,8 +46,10 @@ async function chat(system: string, user: string, temperature: number): Promise<
       usage.output += data.usage.completion_tokens
       return data.choices[0].message.content
     } catch (err) {
-      if (attempt >= 3) throw err
-      await new Promise(r => setTimeout(r, 4000 * attempt))
+      // 每分鐘用量上限（429）：等久一點再試；額度用完就不用再試了
+      const rateLimited = String(err).startsWith('Error: 429') && !String(err).includes('credits')
+      if (attempt >= (rateLimited ? 6 : 3)) throw err
+      await new Promise(r => setTimeout(r, (rateLimited ? 20000 : 4000) * attempt))
     }
   }
 }
@@ -250,7 +255,7 @@ for (const n of [4, 5, 6]) {
   console.log(`產生模擬試題 ${n}…`)
   // Part 5：多產生一批，淘汰後取 30 題
   const p5: GenQ[] = []
-  for (let b = 0; p5.length < 30 && b < 4; b++) p5.push(...(await genPart5(`${tid}-p5-${b}`)))
+  for (let b = 0; p5.length < 30 && b < 4; b++) p5.push(...(await genPart5(`${tid}-p5-${b}`)).filter(q => !hasFakeOption(q)))
   const p6: RawSet[] = []
   await pool([0, 1, 2, 3, 4, 5], async i => {
     if (p6.length >= 4) return
@@ -299,7 +304,8 @@ await pool(
   },
 )
 
-writeFileSync(OUT, JSON.stringify({ tests, bank: { part5: uniqueP5, part6: bankP6 } }))
+writeFileSync(OUT_TESTS, JSON.stringify(tests))
+writeFileSync(OUT_BANK, JSON.stringify({ part5: uniqueP5, part6: bankP6 }))
 // gpt-4.1 定價（每百萬 token）：輸入約 $2、輸出約 $8，以官網為準
 console.log(
   `完成：試題 ${tests.length} 份、Part 5 題庫 ${uniqueP5.length} 題、Part 6 題庫 ${bankP6.length} 篇；token 輸入 ${usage.input}、輸出 ${usage.output}，約 $${((usage.input * 2 + usage.output * 8) / 1e6).toFixed(2)}（不含快取過的部分）`,

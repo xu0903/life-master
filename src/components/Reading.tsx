@@ -22,6 +22,7 @@ import {
   FULL_TEST_MINUTES,
   GROUP_BY_ID,
   PRACTICE_BANK,
+  loadPracticeBank,
   READING_HISTORY_KEY,
   READING_TAGS_KEY,
   READING_TESTS,
@@ -338,6 +339,11 @@ export default function Reading() {
   const [collected, setCollected] = useState(0)
   const { collect } = useMistakeWords()
   const [pace, setPace] = useLocalStorage<Pace>(PACE_KEY, DEFAULT_PACE)
+  // 練習題庫第一次用到時才下載，載完重新整理畫面（寫到一半的題庫題目也才找得到）
+  const [, setBankReady] = useState(false)
+  useEffect(() => {
+    void loadPracticeBank().then(() => setBankReady(true))
+  }, [])
   const [timedMode, setTimedMode] = useLocalStorage('lifemaster.readingTimed', false)
 
   const active = session ?? result

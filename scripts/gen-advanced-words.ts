@@ -230,13 +230,16 @@ await pool(batches, async batch => {
 })
 writeFileSync(ENRICH_CACHE, JSON.stringify(enrichCache))
 
+// 統一中文解釋裡的詞性標註：只有一種詞性就拿掉，多種詞性統一成（n.）（v.）
+const POS_ZH: Record<string, string> = { 名詞: 'n.', 動詞: 'v.', 形容詞: 'adj.', 副詞: 'adv.', 介系詞: 'prep.', 連接詞: 'conj.' }
 const cleanZh = (zh: string, pos = '') =>
-  pos.includes('/')
-    ? zh
-    : zh
-        .replace(/[（(]\s*(?:n|v|adj|adv|prep|conj)\.?\s*[)）]/g, '')
-        .replace(/\s+；/g, '；')
-        .trim()
+  zh
+    .replace(/[（(]\s*((?:n|v|adj|adv|prep|conj)\.?(?:\s*\/\s*(?:n|v|adj|adv|prep|conj)\.?)*|名詞|動詞|形容詞|副詞|介系詞|連接詞)\s*[)）]/g, (_, t: string) =>
+      pos.includes('/') ? `（${POS_ZH[t] ?? t.replace(/\s/g, '')}）` : '',
+    )
+    .replace(/\s+；/g, '；')
+    .replace(/；\s*$/, '')
+    .trim()
 
 // 輸出：[單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 難度 1–3, 易混淆字]
 const rows = picked

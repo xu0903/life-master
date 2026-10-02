@@ -1,7 +1,7 @@
 import { TEST_1 } from './reading1'
 import { TEST_2 } from './reading2'
 import { TEST_3 } from './reading3'
-import EXTRA from './reading-extra.json'
+import EXTRA_TESTS from './reading-tests-extra.json'
 
 /**
  * 題庫原始格式：正確答案預設放在選項第一個（a 省略 = 0），載入時再用固定亂數打散順序。
@@ -154,14 +154,25 @@ function buildTest(raw: RawTest): ReadingTest {
 }
 
 // 模擬試題 4–6 與練習題庫由 scripts/gen-reading.ts 產生（AI 出題、再由 AI 獨立驗算，答案對不上的已淘汰）
-const extra = EXTRA as unknown as { tests: RawTest[]; bank: { part5: RawQuestion[]; part6: RawSet[] } }
+export const READING_TESTS: ReadingTest[] = [TEST_1, TEST_2, TEST_3, ...(EXTRA_TESTS as unknown as RawTest[])].map(buildTest)
 
-export const READING_TESTS: ReadingTest[] = [TEST_1, TEST_2, TEST_3, ...extra.tests].map(buildTest)
+/**
+ * 不屬於任何一份試題的練習題庫（Part 5 句子填空、Part 6 段落填空），給「刷 10 題」「填空 2 篇」抽題。
+ * 題庫約 0.5MB，第一次打開閱讀時才下載（loadPracticeBank），下載前是空的。
+ */
+export let PRACTICE_BANK: ReadingTest = buildTest({ id: 'pb', name: '練習題庫', part5: [], part6: [], part7: [] })
 
-/** 不屬於任何一份試題的練習題庫（Part 5 句子填空、Part 6 段落填空），給「刷 10 題」「填空 2 篇」抽題 */
-export const PRACTICE_BANK: ReadingTest = buildTest({ id: 'pb', name: '練習題庫', part5: extra.bank.part5, part6: extra.bank.part6, part7: [] })
+export const GROUP_BY_ID = new Map(READING_TESTS.flatMap(t => t.groups.map(g => [g.id, g] as const)))
 
-export const GROUP_BY_ID = new Map([...READING_TESTS, PRACTICE_BANK].flatMap(t => t.groups.map(g => [g.id, g] as const)))
+let bankLoading: Promise<void> | null = null
+export function loadPracticeBank(): Promise<void> {
+  bankLoading ??= import('./reading-bank.json').then(mod => {
+    const bank = mod.default as unknown as { part5: RawQuestion[]; part6: RawSet[] }
+    PRACTICE_BANK = buildTest({ id: 'pb', name: '練習題庫', part5: bank.part5, part6: bank.part6, part7: [] })
+    for (const g of PRACTICE_BANK.groups) GROUP_BY_ID.set(g.id, g)
+  })
+  return bankLoading
+}
 
 /** 題組屬於哪一份試題 */
 export function testOfGroup(groupId: string): ReadingTest | undefined {

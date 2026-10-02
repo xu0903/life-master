@@ -4,6 +4,11 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.7.0': [
+    '「刷 10 題」的 Part 5 題庫擴充到約 1,600 題，「填空 2 篇」有近 100 篇 Part 6 可抽',
+    '模擬試題 6 補齊 100 題',
+    '進階字彙擴充到 6,384 字（中高級、高級、學術三級），字典與每日單字都能用',
+  ],
   '1.6.0': [
     '閱讀新增模擬試題 4–6，「刷 10 題」多了 200 多題 Part 5，新增「填空 2 篇」Part 6 練習',
     '字典新增「進階字彙」（持續擴充中），也能設成每日單字來源',
