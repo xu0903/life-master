@@ -6,8 +6,7 @@ const FLAG_KEY = 'lm-push-enabled'
 export const PUSH_EVENT = 'lifemaster:push'
 
 /** 這個環境有沒有機會用背景推播（iPhone 要加入主畫面後才有 PushManager） */
-export const pushSupported =
-  supabase !== null && !!vapidKey && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
+export const pushSupported = supabase !== null && !!vapidKey && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
 
 /** 這台裝置是否已向雲端登記推播，App 關著也能收到通知 */
 export function isPushEnabled() {
@@ -34,15 +33,26 @@ function toKey(base64: string) {
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0))
 }
 
+function sameKey(current: ArrayBuffer | null, wanted: Uint8Array) {
+  if (!current) return false
+  const a = new Uint8Array(current)
+  return a.length === wanted.length && a.every((v, i) => v === wanted[i])
+}
+
 /** 通知權限開啟後呼叫：向瀏覽器訂閱推播並把訂閱資訊存到雲端。App 每次啟動也會呼叫一次以更新訂閱。 */
 export async function enablePush(): Promise<boolean> {
   if (!pushSupported || !supabase || !vapidKey || Notification.permission !== 'granted') return setFlag(false)
   try {
     const reg = await navigator.serviceWorker.getRegistration()
     if (!reg || !(await ensureUser())) return setFlag(false)
-    const sub =
-      (await reg.pushManager.getSubscription()) ??
-      (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(vapidKey) }))
+    const key = toKey(vapidKey)
+    let sub = await reg.pushManager.getSubscription()
+    // 推播金鑰換過的話，舊訂閱收不到新金鑰簽的通知：取消後用新金鑰重新訂閱（通知權限還在，不用再問）
+    if (sub && !sameKey(sub.options.applicationServerKey, key)) {
+      await sub.unsubscribe().catch(() => {})
+      sub = null
+    }
+    sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
     const { endpoint, keys } = sub.toJSON()
     if (!endpoint || !keys?.p256dh || !keys.auth) return setFlag(false)
     const { error } = await supabase.rpc('save_push_subscription', { p_endpoint: endpoint, p_p256dh: keys.p256dh, p_auth: keys.auth })

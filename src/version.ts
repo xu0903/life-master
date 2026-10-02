@@ -4,6 +4,7 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.5.1': ['更換推播金鑰（資安維護）；通知會自動改用新金鑰，不用重新開啟'],
   '1.5.0': [
     '帳號系統：用 Email 註冊，手機、平板登入同一個帳號自動同步資料',
     '新增單字卡改成彈出視窗：輸入單字自動帶出詞性、各個意思、例句與同反義詞',
