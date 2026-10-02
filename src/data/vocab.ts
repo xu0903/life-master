@@ -10,7 +10,7 @@ import type { Level, WordInfo } from './toeicWords'
  */
 
 /** 每日單字的來源：多益題庫，或某個字表的某幾級 */
-export type WordSource = { list: 'toeic' } | { list: 'ceec' | 'gept'; min: number; max: number }
+export type WordSource = { list: 'toeic' } | { list: 'ceec' | 'gept' | 'adv'; min: number; max: number }
 
 export const WORD_SOURCE_KEY = 'lifemaster.wordSource'
 export const DEFAULT_WORD_SOURCE: WordSource = { list: 'toeic' }
@@ -20,6 +20,13 @@ export const GEPT_LEVELS = [
   { value: 1, label: '初級' },
   { value: 2, label: '中級' },
   { value: 3, label: '中高級' },
+]
+
+/** 進階字彙的難度（AI 依主題整理，不含學測與多益已有的字） */
+export const ADV_LEVELS = [
+  { value: 1, label: '中高級' },
+  { value: 2, label: '高級' },
+  { value: 3, label: '學術' },
 ]
 
 export const VOCAB_CREDIT =
@@ -34,11 +41,15 @@ export interface VocabEntry {
   gept: number
   /** 多益常考程度 1（非常常考）～5（進階），0 = 不在多益擴充字表 */
   toeic: number
+  /** 進階字彙難度 1–3，0 = 不在進階字表 */
+  adv: number
 }
 
 type Row = [string, string, string, string, string, string, string, string, number, number]
 /** [單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 常考程度, 細主題編號, 易混淆字] */
 type ToeicRow = [string, string, string, string, string, string, string, string, number, number[], string]
+/** [單字, 詞性, 中文, 英英, 例句, 例句翻譯, 同義, 反義, 難度 1–3, 易混淆字] */
+type AdvRow = [string, string, string, string, string, string, string, string, number, string]
 
 let entries: VocabEntry[] | null = null
 let loading: Promise<VocabEntry[]> | null = null
@@ -48,37 +59,58 @@ const split = (s: string) => (s ? s.split(', ').filter(Boolean) : [])
 
 /** 載入字表（只會下載一次）；載入完成後，查單字、抽每日單字都會包含這些字 */
 export function loadVocab(): Promise<VocabEntry[]> {
-  loading ??= Promise.all([import('./vocab.json'), import('./toeic-extra.json'), import('./toeic-core-topics.json')]).then(([vocab, toeic, coreTopics]) => {
-    // 內建多益題庫的字補上主題
-    const topicMap = coreTopics.default as Record<string, number[]>
-    for (const w of WORD_INFO) w.topics ??= topicMap[w.word.toLowerCase()]
-    const rows = vocab.default as Row[]
-    const toeicIds = new Set(TOEIC_WORDS.map(c => c.id))
-    const list: VocabEntry[] = rows.map(([word, pos, zh, def, ex, exZh, syn, ant, ceec, gept]) => {
-      // 多益題庫已經有的字沿用同一張卡，熟練度才不會分成兩份
-      const existing = cardForWord(word)
-      const card: Card = existing && toeicIds.has(existing.id) ? existing : { id: `vocab-${word}`, question: word, answer: `(${pos}) ${zh}`, source: 'vocab' }
-      const info: WordInfo = { level: 900, word, kk: '', pos, zh, def, syn: split(syn), ant: split(ant), ex, exZh }
-      return { card, info, ceec, gept, toeic: 0 }
-    })
-    // 多益擴充字：學測字表也有的字共用同一張卡，只補上常考程度、主題與易混淆字
-    const byWord = new Map(list.map(e => [e.info.word.toLowerCase(), e]))
-    for (const [word, pos, zh, def, ex, exZh, syn, ant, freq, topics, conf] of toeic.default as unknown as ToeicRow[]) {
-      const extra = { freq, topics, conf: split(conf) }
-      const hit = byWord.get(word.toLowerCase())
-      if (hit) {
-        hit.toeic = freq
-        Object.assign(hit.info, extra)
-        continue
+  loading ??= Promise.all([import('./vocab.json'), import('./toeic-extra.json'), import('./toeic-core-topics.json'), import('./advanced.json')]).then(
+    ([vocab, toeic, coreTopics, advanced]) => {
+      // 內建多益題庫的字補上主題
+      const topicMap = coreTopics.default as Record<string, number[]>
+      for (const w of WORD_INFO) w.topics ??= topicMap[w.word.toLowerCase()]
+      const rows = vocab.default as Row[]
+      const toeicIds = new Set(TOEIC_WORDS.map(c => c.id))
+      const list: VocabEntry[] = rows.map(([word, pos, zh, def, ex, exZh, syn, ant, ceec, gept]) => {
+        // 多益題庫已經有的字沿用同一張卡，熟練度才不會分成兩份
+        const existing = cardForWord(word)
+        const card: Card = existing && toeicIds.has(existing.id) ? existing : { id: `vocab-${word}`, question: word, answer: `(${pos}) ${zh}`, source: 'vocab' }
+        const info: WordInfo = { level: 900, word, kk: '', pos, zh, def, syn: split(syn), ant: split(ant), ex, exZh }
+        return { card, info, ceec, gept, toeic: 0, adv: 0 }
+      })
+      // 多益擴充字：學測字表也有的字共用同一張卡，只補上常考程度、主題與易混淆字
+      const byWord = new Map(list.map(e => [e.info.word.toLowerCase(), e]))
+      for (const [word, pos, zh, def, ex, exZh, syn, ant, freq, topics, conf] of toeic.default as unknown as ToeicRow[]) {
+        const extra = { freq, topics, conf: split(conf) }
+        const hit = byWord.get(word.toLowerCase())
+        if (hit) {
+          hit.toeic = freq
+          Object.assign(hit.info, extra)
+          continue
+        }
+        const info: WordInfo = { level: tierLevel(freq), word, kk: '', pos, zh, def, syn: split(syn), ant: split(ant), ex, exZh, ...extra }
+        const entry = {
+          card: { id: `vocab-${word}`, question: word, answer: `(${pos}) ${zh}`, source: 'toeic' as const },
+          info,
+          ceec: 0,
+          gept: 0,
+          toeic: freq,
+          adv: 0,
+        }
+        list.push(entry)
+        byWord.set(word.toLowerCase(), entry)
       }
-      const info: WordInfo = { level: tierLevel(freq), word, kk: '', pos, zh, def, syn: split(syn), ant: split(ant), ex, exZh, ...extra }
-      list.push({ card: { id: `vocab-${word}`, question: word, answer: `(${pos}) ${zh}`, source: 'toeic' }, info, ceec: 0, gept: 0, toeic: freq })
-    }
-    entries = list
-    registerWords(list.map(e => ({ card: e.card, info: e.info })))
-    listeners.forEach(fn => fn())
-    return list
-  })
+      // 進階字彙（scripts/gen-advanced-words.ts 已排除學測、多益有的字）
+      for (const [word, pos, zh, def, ex, exZh, syn, ant, level, conf] of advanced.default as unknown as AdvRow[]) {
+        const hit = byWord.get(word.toLowerCase())
+        if (hit) {
+          hit.adv = level
+          continue
+        }
+        const info: WordInfo = { level: 900, word, kk: '', pos, zh, def, syn: split(syn), ant: split(ant), ex, exZh, conf: split(conf) }
+        list.push({ card: { id: `vocab-${word}`, question: word, answer: `(${pos}) ${zh}`, source: 'vocab' }, info, ceec: 0, gept: 0, toeic: 0, adv: level })
+      }
+      entries = list
+      registerWords(list.map(e => ({ card: e.card, info: e.info })))
+      listeners.forEach(fn => fn())
+      return list
+    },
+  )
   return loading
 }
 
@@ -122,7 +154,7 @@ export function vocabPool(source: WordSource, maxLevel: Level = 900): Card[] | n
   if (source.list === 'gept' && !hasGept()) return null
   return entries
     .filter(e => {
-      const level = source.list === 'ceec' ? e.ceec : e.gept
+      const level = source.list === 'ceec' ? e.ceec : source.list === 'adv' ? e.adv : e.gept
       return level >= source.min && level <= source.max
     })
     .map(e => e.card)
@@ -131,6 +163,10 @@ export function vocabPool(source: WordSource, maxLevel: Level = 900): Card[] | n
 export function sourceLabel(source: WordSource): string {
   if (source.list === 'toeic') return '多益'
   if (source.list === 'ceec') return source.min === source.max ? `學測 ${source.min} 級` : `學測 ${source.min}–${source.max} 級`
+  if (source.list === 'adv') {
+    const adv = (n: number) => ADV_LEVELS.find(l => l.value === n)?.label ?? ''
+    return source.min === source.max ? `進階${adv(source.min)}` : `進階${adv(source.min)}–${adv(source.max)}`
+  }
   const name = (n: number) => GEPT_LEVELS.find(l => l.value === n)?.label ?? ''
   return source.min === source.max ? `英檢${name(source.min)}` : `英檢${name(source.min)}–${name(source.max)}`
 }

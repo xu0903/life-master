@@ -4,6 +4,12 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.6.0': [
+    '閱讀新增模擬試題 4–6，「刷 10 題」多了 200 多題 Part 5，新增「填空 2 篇」Part 6 練習',
+    '字典新增「進階字彙」（持續擴充中），也能設成每日單字來源',
+    '修正帳號同步：多益菜單等資料現在會同步；新增「切換帳號」與「用帳號資料重新同步」',
+    '檢查更新改成一秒內知道有沒有新版，更新下載量減少約一半',
+  ],
   '1.5.1': ['更換推播金鑰（資安維護）；通知會自動改用新金鑰，不用重新開啟'],
   '1.5.0': [
     '帳號系統：用 Email 註冊，手機、平板登入同一個帳號自動同步資料',

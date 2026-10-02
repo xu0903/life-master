@@ -15,11 +15,13 @@ import {
   Timer,
   Trophy,
   X,
+  PenLine,
 } from 'lucide-react'
 import QuestionBlock, { LookupText } from './QuestionBlock'
 import {
   FULL_TEST_MINUTES,
   GROUP_BY_ID,
+  PRACTICE_BANK,
   READING_HISTORY_KEY,
   READING_TAGS_KEY,
   READING_TESTS,
@@ -68,7 +70,7 @@ const groupRange = (group: ReadingGroup) =>
 
 const DAILY_COUNT = 10
 const QUICK_PASSAGES = 2
-const MIXED: Scope[] = ['daily', 'quick', 'wrong']
+const MIXED: Scope[] = ['daily', 'quick', 'blanks', 'wrong']
 
 const groupsOf = (test: ReadingTest, scope: Scope) => (scope === 'full' ? test.groups : test.groups.filter(g => g.section === scope))
 const sessionGroups = (session: Session): ReadingGroup[] => {
@@ -80,6 +82,7 @@ const scopeLabel = (scope: Scope) => {
   if (scope === 'full') return '完整模擬考'
   if (scope === 'daily') return `每日 ${DAILY_COUNT} 題`
   if (scope === 'quick') return `閱讀 ${QUICK_PASSAGES} 篇`
+  if (scope === 'blanks') return `填空 ${QUICK_PASSAGES} 篇`
   if (scope === 'wrong') return '錯題本'
   const s = SECTIONS.find(x => x.id === scope)
   return s ? `${s.part} ${s.label}` : ''
@@ -370,12 +373,22 @@ export default function Reading() {
     if (scope === 'daily') {
       // 每日 10 題：Part 5 為主，錯過的題目優先
       const wrong = new Set(wrongIds)
-      const pool = READING_TESTS.flatMap(t => t.groups.filter(g => g.section === 'p5'))
+      const pool = [...READING_TESTS, PRACTICE_BANK].flatMap(t => t.groups.filter(g => g.section === 'p5'))
       const first = shuffled(pool.filter(g => wrong.has(g.questions[0].id)))
       const rest = shuffled(pool.filter(g => !wrong.has(g.questions[0].id)))
       return begin(
         scope,
         [...first, ...rest].slice(0, DAILY_COUNT).map(g => g.id),
+      )
+    }
+    if (scope === 'blanks') {
+      // Part 6 段落填空：從試題與題庫裡隨機抽
+      const pool = [...READING_TESTS, PRACTICE_BANK].flatMap(t => t.groups.filter(g => g.section === 'p6'))
+      return begin(
+        scope,
+        shuffled(pool)
+          .slice(0, QUICK_PASSAGES)
+          .map(g => g.id),
       )
     }
     if (scope === 'quick') {
@@ -725,11 +738,12 @@ export default function Reading() {
   const fullBest = bestOf('full')
   const dailyToday = history.filter(r => r.scope === 'daily' && r.date === toDateKey()).length
   const quickToday = history.filter(r => r.scope === 'quick' && r.date === toDateKey()).length
+  const blanksToday = history.filter(r => r.scope === 'blanks' && r.date === toDateKey()).length
   const wrongCount = wrongIds.filter(id => GROUP_BY_ID.has(id.slice(0, id.lastIndexOf('-')))).length
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
         <button onClick={() => start('daily')} className="rounded-2xl bg-surface p-3 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]">
           <Sparkles className="h-5 w-5 text-primary-ink" />
           <p className="mt-1.5 text-sm font-semibold text-fg">刷 {DAILY_COUNT} 題</p>
@@ -739,6 +753,14 @@ export default function Reading() {
           <BookOpenText className="h-5 w-5 text-primary-ink" />
           <p className="mt-1.5 text-sm font-semibold text-fg">閱讀 {QUICK_PASSAGES} 篇</p>
           <p className="text-xs text-muted">{quickToday > 0 ? `今天 ${quickToday} 回` : '長篇先練兩篇'}</p>
+        </button>
+        <button
+          onClick={() => start('blanks')}
+          className="rounded-2xl bg-surface p-3 text-left shadow-sm ring-1 ring-primary/20 transition active:scale-[0.98]"
+        >
+          <PenLine className="h-5 w-5 text-primary-ink" />
+          <p className="mt-1.5 text-sm font-semibold text-fg">填空 {QUICK_PASSAGES} 篇</p>
+          <p className="text-xs text-muted">{blanksToday > 0 ? `今天 ${blanksToday} 回` : 'Part 6 段落填空'}</p>
         </button>
         <button
           onClick={() => start('wrong')}
@@ -754,12 +776,12 @@ export default function Reading() {
 
       <PaceSettings timed={timedMode} onTimed={setTimedMode} pace={pace} onPace={setPace} />
 
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {READING_TESTS.map(t => (
           <button
             key={t.id}
             onClick={() => setTestId(t.id)}
-            className={`flex-1 rounded-full py-2 text-sm transition ${test.id === t.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface text-muted'}`}
+            className={`rounded-full py-2 text-sm transition ${test.id === t.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface text-muted'}`}
           >
             {t.name}
           </button>

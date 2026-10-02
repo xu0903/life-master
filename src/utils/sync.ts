@@ -11,7 +11,26 @@ const LAST_SYNC_KEY = 'lm-sync-at'
 export const SYNC_STATUS_EVENT = 'lifemaster:sync-status'
 
 /** 作答中的進度、計時器這類只屬於這台裝置的暫存，不同步 */
-const LOCAL_ONLY = ['lifemaster.readingSession', 'lifemaster.practice.', 'lifemaster.habitTimer']
+const LOCAL_ONLY = ['lifemaster.readingSession', 'lifemaster.practice.', 'lifemaster.habitTimer', 'lifemaster.seenVersion']
+/** 剛登入（或換帳號）的裝置：下一次同步以帳號裡的資料為準 */
+const FRESH_KEY = 'lm-sync-fresh'
+export function markFreshDevice() {
+  try {
+    localStorage.setItem(FRESH_KEY, '1')
+  } catch {
+    // 忽略
+  }
+}
+
+/** 切換帳號前：把這個帳號的資料從這台裝置清掉（雲端已經有一份），之後登入的帳號會整份載入 */
+export function clearSyncedData() {
+  const keys: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && isSynced(key)) keys.push(key)
+  }
+  for (const key of [...keys, MTIME_KEY, LAST_SYNC_KEY]) localStorage.removeItem(key)
+}
 export const isSynced = (key: string) => key.startsWith(PREFIX) && !LOCAL_ONLY.some(p => key.startsWith(p))
 
 function readMtimes(): Record<string, number> {
@@ -67,13 +86,14 @@ export function syncNow(): Promise<boolean> {
       const cloud = (row?.data ?? null) as CloudData | null
       const local = readMtimes()
       const changed: string[] = []
+      const fresh = localStorage.getItem(FRESH_KEY) === '1'
 
-      // 雲端比較新的項目寫回這台裝置
+      // 雲端比較新的項目寫回這台裝置；這台裝置沒有的項目一定補上；剛登入的裝置全部以雲端為準
       if (cloud?.data) {
         for (const [key, value] of Object.entries(cloud.data)) {
           if (!isSynced(key)) continue
           const cloudTime = cloud.mtime?.[key] ?? 1
-          if (cloudTime > (local[key] ?? 0)) {
+          if (fresh || localStorage.getItem(key) === null || cloudTime > (local[key] ?? 0)) {
             const text = JSON.stringify(value)
             if (localStorage.getItem(key) !== text) {
               localStorage.setItem(key, text)
@@ -103,6 +123,7 @@ export function syncNow(): Promise<boolean> {
       const { error: upErr } = await supabase.from('backups').upsert({ user_id: user.id, data: payload, updated_at: now })
       if (upErr) return false
       localStorage.setItem(LAST_SYNC_KEY, now)
+      localStorage.removeItem(FRESH_KEY)
 
       // 讓畫面上的資料跟著更新
       for (const key of changed) window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: key }))

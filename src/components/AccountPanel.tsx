@@ -2,7 +2,19 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { CloudCheck, LogOut, RefreshCw, UserRound } from 'lucide-react'
 import { cloudEnabled, supabase } from '../utils/cloud'
-import { currentAccount, sendPasswordReset, setNewPassword, signIn, signOut, signUp } from '../utils/account'
+import {
+  currentAccount,
+  finishOAuth,
+  googleEnabled,
+  resyncFromAccount,
+  sendPasswordReset,
+  setNewPassword,
+  signIn,
+  signInWithGoogle,
+  signOut,
+  signUp,
+  switchAccount,
+} from '../utils/account'
 import { SYNC_STATUS_EVENT, lastSyncAt, syncNow } from '../utils/sync'
 
 const field = 'w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-base text-fg outline-none placeholder:text-faint focus:border-primary'
@@ -21,6 +33,7 @@ export default function AccountPanel() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [synced, setSynced] = useState(lastSyncAt)
+  const [google, setGoogle] = useState(false)
 
   useEffect(() => {
     const refresh = () => {
@@ -28,6 +41,7 @@ export default function AccountPanel() {
       setSynced(lastSyncAt())
     }
     refresh()
+    void googleEnabled().then(setGoogle)
     window.addEventListener(SYNC_STATUS_EVENT, refresh)
     return () => window.removeEventListener(SYNC_STATUS_EVENT, refresh)
   }, [])
@@ -71,6 +85,27 @@ export default function AccountPanel() {
             <LogOut className="h-4 w-4" /> 登出
           </button>
         </div>
+        <button
+          onClick={async () => {
+            if (!confirm('切換帳號：會先把目前帳號的資料同步上雲端，再清掉這台裝置上的資料並登出，之後登入另一個帳號就會載入它的資料。確定嗎？')) return
+            setBusy(true)
+            await switchAccount()
+          }}
+          className="w-full rounded-xl bg-surface-2 py-2.5 text-sm font-medium text-fg"
+        >
+          切換帳號
+        </button>
+        <button
+          onClick={async () => {
+            if (!confirm('用帳號裡的資料覆蓋這台裝置（兩台裝置內容對不起來時使用）。確定嗎？')) return
+            setBusy(true)
+            setNote((await resyncFromAccount()) ? '已用帳號資料重新同步' : '同步失敗，請確認網路')
+            setBusy(false)
+          }}
+          className="w-full text-center text-xs text-faint underline underline-offset-2"
+        >
+          兩台裝置內容不一樣？用帳號資料重新同步這台裝置
+        </button>
         {note && <p className="text-center text-xs text-muted">{note}</p>}
       </div>
     )
@@ -116,6 +151,26 @@ export default function AccountPanel() {
           ? '用 Email 建立帳號，這台裝置現有的資料、夥伴房間都會跟著帳號走。之後在平板或新手機登入同一個帳號就能同步。'
           : '登入後會把帳號裡的資料同步到這台裝置；這台裝置原本的資料也會合併上去。'}
       </p>
+      {google && (
+        <>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              const err = await signInWithGoogle()
+              if (err) {
+                setNote(err)
+                setBusy(false)
+              }
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200 disabled:opacity-50"
+          >
+            <span className="text-lg font-bold text-[#4285F4]">G</span> 使用 Google 帳號{mode === 'signup' ? '註冊' : '登入'}
+          </button>
+          <p className="text-center text-xs text-faint">或用 Email</p>
+        </>
+      )}
       <input
         type="email"
         autoComplete="email"
@@ -161,6 +216,10 @@ export function PasswordRecovery() {
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
   const [note, setNote] = useState('')
+
+  useEffect(() => {
+    void finishOAuth()
+  }, [])
 
   useEffect(() => {
     if (!supabase) return

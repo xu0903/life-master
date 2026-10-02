@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search, Volume2 } from 'lucide-react'
 import { WORD_INFO } from '../data/toeicWords'
-import { tierLevel, vocabEntries } from '../data/vocab'
+import { ADV_LEVELS, tierLevel, vocabEntries } from '../data/vocab'
 import { TOEIC_TOPICS, topicCategories } from '../data/toeicTopics'
 import { useSpeechSettings } from '../hooks/useSpeechSettings'
 import { useVocabReady } from '../hooks/useDailyWords'
@@ -18,7 +18,7 @@ interface Entry {
   topics: string[]
 }
 
-type ListFilter = 'all' | 'toeic' | 'ceec'
+type ListFilter = 'all' | 'toeic' | 'ceec' | 'adv'
 
 const PAGE = 60
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -41,7 +41,11 @@ export default function Dictionary() {
       map.set(w.word.toLowerCase(), { word: w.word, pos: w.pos, zh: w.zh, tags: [`多益 ${w.level}`], topics: topicCategories(w.topics) })
     for (const e of (ready && vocabEntries()) || []) {
       const key = e.info.word.toLowerCase()
-      const tags = [...(e.toeic ? [`多益 ${tierLevel(e.toeic)}`] : []), ...(e.ceec ? [`學測 ${e.ceec}`] : [])]
+      const tags = [
+        ...(e.toeic ? [`多益 ${tierLevel(e.toeic)}`] : []),
+        ...(e.ceec ? [`學測 ${e.ceec}`] : []),
+        ...(e.adv ? [`進階 ${ADV_LEVELS.find(l => l.value === e.adv)?.label ?? ''}`] : []),
+      ]
       const cur = map.get(key)
       if (cur) {
         for (const t of tags) if (!cur.tags.some(x => x.slice(0, 2) === t.slice(0, 2))) cur.tags.push(t)
@@ -56,6 +60,7 @@ export default function Dictionary() {
     if (list === 'toeic' && !e.tags.some(t => t.startsWith('多益'))) return false
     if (list === 'toeic' && topic && !e.topics.includes(topic)) return false
     if (list === 'ceec' && !e.tags.some(t => t.startsWith('學測') && (!level || t === `學測 ${level}`))) return false
+    if (list === 'adv' && !e.tags.some(t => t.startsWith('進階') && (!level || t === `進階 ${ADV_LEVELS[level - 1]?.label}`))) return false
     if (letter && !e.word.toUpperCase().startsWith(letter)) return false
     if (!q) return true
     return /[a-z]/.test(q) ? e.word.toLowerCase().includes(q) : e.zh.includes(q)
@@ -90,6 +95,7 @@ export default function Dictionary() {
             ['all', '全部'],
             ['toeic', '多益'],
             ['ceec', '學測'],
+            ['adv', '進階'],
           ] as const
         ).map(([v, label]) => (
           <button
@@ -120,6 +126,19 @@ export default function Dictionary() {
                 className={chip(topic === t.id)}
               >
                 {t.emoji} {t.label}
+              </button>
+            ))}
+          {list === 'adv' &&
+            ADV_LEVELS.map(l => (
+              <button
+                key={l.value}
+                onClick={() => {
+                  setLevel(level === l.value ? 0 : l.value)
+                  reset()
+                }}
+                className={chip(level === l.value)}
+              >
+                {l.label}
               </button>
             ))}
           {list === 'ceec' &&

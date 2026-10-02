@@ -9,6 +9,7 @@ import type { Question, QuestionType } from '../data/practice'
 import { TOEIC_WORDS, WORD_INFO, lookupWord, nextStat } from '../data/toeicWords'
 import type { WordStat } from '../data/toeicWords'
 import { logStudy } from '../data/studyLog'
+import { touch } from '../utils/sync'
 import { useCards } from '../hooks/useCards'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { needsVocab, sourceLabel, vocabPool } from '../data/vocab'
@@ -381,6 +382,7 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
       try {
         const list = JSON.parse(localStorage.getItem(DISPUTED_KEY) ?? '[]') as string[]
         localStorage.setItem(DISPUTED_KEY, JSON.stringify([...list, `${q.card.question.toLowerCase()}|${other.toLowerCase()}`].slice(-500)))
+        touch(DISPUTED_KEY)
       } catch {
         // 存不了就只影響這一題
       }

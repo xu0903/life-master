@@ -1,3 +1,5 @@
+import { touch } from './sync'
+
 const PREFIX = 'lifemaster.'
 const APP = 'LifeMaster'
 
@@ -45,6 +47,9 @@ export function applyBackup(parsed: Partial<BackupFile>): number {
     throw new Error('這不是 LifeMaster 的備份檔')
   }
   const entries = Object.entries(parsed.data).filter(([key]) => key.startsWith(PREFIX))
-  for (const [key, value] of entries) localStorage.setItem(key, JSON.stringify(value))
+  for (const [key, value] of entries) {
+    localStorage.setItem(key, JSON.stringify(value))
+    touch(key)
+  }
   return entries.length
 }

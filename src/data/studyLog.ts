@@ -1,4 +1,5 @@
 import { SYNC_EVENT } from '../hooks/useLocalStorage'
+import { touch } from '../utils/sync'
 import { toDateKey } from '../utils/date'
 
 /**
@@ -38,6 +39,7 @@ export function logStudy(kind: StudyKind, amount = 1) {
   log.counts[kind] = (log.counts[kind] ?? 0) + amount
   try {
     localStorage.setItem(STUDY_LOG_KEY, JSON.stringify(log))
+    touch(STUDY_LOG_KEY)
     window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: STUDY_LOG_KEY }))
   } catch {
     // 存不了就算了，只影響菜單打勾

@@ -16,7 +16,7 @@ import {
 import type { ActivityLink, Habit, HabitKind, HabitSettings } from '../data/habits'
 import { LEVELS, WORD_INFO } from '../data/toeicWords'
 import { useVocabReady, useWordLevel, useWordSource } from '../hooks/useDailyWords'
-import { CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntries, vocabPool } from '../data/vocab'
+import { ADV_LEVELS, CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabel, vocabEntries, vocabPool } from '../data/vocab'
 import { useHabits } from '../hooks/useHabits'
 import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
@@ -64,15 +64,22 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 /** 目前版本與手動檢查更新（App 會自動更新，這裡讓使用者確認是不是最新版） */
 function VersionInfo() {
   const [status, setStatus] = useState('')
+  const [latest, setLatest] = useState('')
   const check = async () => {
     setStatus('檢查中…')
     try {
+      // 先直接問伺服器最新版本號，一秒內就知道有沒有新版
+      const res = await fetch(`${import.meta.env.BASE_URL}version.json?t=${Date.now()}`, { cache: 'no-store' })
+      const { version } = (await res.json()) as { version: string }
+      if (version === APP_VERSION) return setStatus('已經是最新版')
+      setLatest(version)
+      setStatus(`發現 v${version}，下載中…`)
       const reg = await navigator.serviceWorker?.getRegistration()
-      if (!reg) return setStatus('這個瀏覽器沒有離線快取，重新整理就是最新版')
+      // 新版裝好會自動接手並重新載入（main.tsx）；沒有離線快取的瀏覽器直接重新整理
+      if (!reg) return window.location.reload()
       await reg.update()
-      // 有新版會自動安裝並重新載入頁面；幾秒後還在這裡就代表已是最新版
-      if (reg.installing || reg.waiting) setStatus('發現新版，裝好會自動重新載入…')
-      else window.setTimeout(() => setStatus(reg.installing || reg.waiting ? '發現新版，裝好會自動重新載入…' : '已經是最新版'), 2500)
+      // 等太久（例如網路慢）就讓使用者自己按重新載入
+      window.setTimeout(() => setStatus('還在下載，可以先按「立即重新載入」'), 8000)
     } catch {
       setStatus('檢查失敗，請確認網路')
     }
@@ -85,9 +92,15 @@ function VersionInfo() {
       </span>
       <span className="flex-1" />
       {status && <span className="text-xs text-faint">{status}</span>}
-      <button onClick={check} className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1 text-xs text-primary-ink">
-        檢查更新
-      </button>
+      {latest ? (
+        <button onClick={() => window.location.reload()} className="shrink-0 rounded-lg bg-primary px-2.5 py-1 text-xs text-on-primary">
+          立即重新載入
+        </button>
+      ) : (
+        <button onClick={check} className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1 text-xs text-primary-ink">
+          檢查更新
+        </button>
+      )}
     </div>
   )
 }
@@ -507,18 +520,20 @@ function WordSourcePicker() {
   const allLists = [
     { value: 'toeic', label: '多益' },
     { value: 'ceec', label: '學測 7000' },
+    { value: 'adv', label: '進階字彙' },
     { value: 'gept', label: '全民英檢' },
   ] as const
   // 英檢字表要等 LTTC 授權才會放進資料；資料裡沒有英檢字表時不顯示這個選項
   const lists = allLists.filter(l => l.value !== 'gept' || hasGept())
-  const levels = source.list === 'ceec' ? CEEC_LEVELS : GEPT_LEVELS
+  const levels = source.list === 'ceec' ? CEEC_LEVELS : source.list === 'adv' ? ADV_LEVELS : GEPT_LEVELS
   const count = (min: number, max: number) =>
     entries?.filter(e => {
-      const lv = source.list === 'ceec' ? e.ceec : e.gept
+      const lv = source.list === 'ceec' ? e.ceec : source.list === 'adv' ? e.adv : e.gept
       return lv >= min && lv <= max
     }).length
 
-  const pickList = (list: (typeof lists)[number]['value']) => setSource(list === 'toeic' ? { list } : { list, min: 1, max: list === 'ceec' ? 6 : 3 })
+  const pickList = (list: (typeof lists)[number]['value']) =>
+    setSource(list === 'toeic' ? { list } : { list, min: 1, max: list === 'ceec' ? 6 : list === 'adv' ? 2 : 3 })
 
   return (
     <div className="space-y-3">

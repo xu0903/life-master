@@ -1,6 +1,7 @@
 import { TEST_1 } from './reading1'
 import { TEST_2 } from './reading2'
 import { TEST_3 } from './reading3'
+import EXTRA from './reading-extra.json'
 
 /**
  * 題庫原始格式：正確答案預設放在選項第一個（a 省略 = 0），載入時再用固定亂數打散順序。
@@ -152,13 +153,19 @@ function buildTest(raw: RawTest): ReadingTest {
   return { id: raw.id, name: raw.name, groups, total: number - 101 }
 }
 
-export const READING_TESTS: ReadingTest[] = [TEST_1, TEST_2, TEST_3].map(buildTest)
+// 模擬試題 4–6 與練習題庫由 scripts/gen-reading.ts 產生（AI 出題、再由 AI 獨立驗算，答案對不上的已淘汰）
+const extra = EXTRA as unknown as { tests: RawTest[]; bank: { part5: RawQuestion[]; part6: RawSet[] } }
 
-export const GROUP_BY_ID = new Map(READING_TESTS.flatMap(t => t.groups.map(g => [g.id, g] as const)))
+export const READING_TESTS: ReadingTest[] = [TEST_1, TEST_2, TEST_3, ...extra.tests].map(buildTest)
+
+/** 不屬於任何一份試題的練習題庫（Part 5 句子填空、Part 6 段落填空），給「刷 10 題」「填空 2 篇」抽題 */
+export const PRACTICE_BANK: ReadingTest = buildTest({ id: 'pb', name: '練習題庫', part5: extra.bank.part5, part6: extra.bank.part6, part7: [] })
+
+export const GROUP_BY_ID = new Map([...READING_TESTS, PRACTICE_BANK].flatMap(t => t.groups.map(g => [g.id, g] as const)))
 
 /** 題組屬於哪一份試題 */
 export function testOfGroup(groupId: string): ReadingTest | undefined {
-  return READING_TESTS.find(t => groupId.startsWith(`${t.id}-`))
+  return [...READING_TESTS, PRACTICE_BANK].find(t => groupId.startsWith(`${t.id}-`))
 }
 
 /** Part 6 文章裡的 {1} 換成實際題號的空格 */
@@ -179,8 +186,8 @@ export type TagStats = Record<string, { right: number; total: number }>
 export interface ReadingRecord {
   date: string
   testId: string
-  /** 'full' = 完整模擬考、'daily' = 每日 10 題、'quick' = 閱讀 2 篇、'wrong' = 錯題本，其餘為單一題型 */
-  scope: SectionId | 'full' | 'daily' | 'quick' | 'wrong'
+  /** 'full' = 完整模擬考、'daily' = 每日 10 題、'quick' = 閱讀 2 篇、'blanks' = 填空 2 篇、'wrong' = 錯題本，其餘為單一題型 */
+  scope: SectionId | 'full' | 'daily' | 'quick' | 'blanks' | 'wrong'
   correct: number
   total: number
   /** 作答秒數 */

@@ -5,6 +5,7 @@ import ShareSheet from './ShareSheet'
 import { useBadges } from '../hooks/useBadges'
 import type { Badge } from '../hooks/useBadges'
 import { drawBadge } from '../utils/shareImage'
+import { touch } from '../utils/sync'
 
 const SEEN_KEY = 'lifemaster.seenBadges'
 
@@ -19,6 +20,7 @@ function readSeen(): string[] | null {
 function writeSeen(names: string[]) {
   try {
     localStorage.setItem(SEEN_KEY, JSON.stringify(names))
+    touch(SEEN_KEY)
   } catch {
     // 存不了頂多再慶祝一次
   }
