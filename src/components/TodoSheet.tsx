@@ -15,16 +15,9 @@ import {
 } from '../data/todos'
 import type { RemindOption, Repeat as RepeatRule, TagNames, Todo } from '../data/todos'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { fromDateKey } from '../utils/date'
 import { downloadIcs, notificationPermission } from '../utils/reminders'
 
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const fieldBase = 'rounded-lg bg-surface-2 px-2.5 py-1.5 text-sm text-fg outline-none focus:ring-2 focus:ring-primary/40'
-
-export const dateTitle = (key: string) => {
-  const d = fromDateKey(key)
-  return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日 週${WEEKDAYS[d.getDay()]}`
-}
 
 function Row({ icon, label, children, onClick }: { icon: ReactNode; label: string; children?: ReactNode; onClick?: () => void }) {
   const Tag = onClick ? 'button' : 'div'
