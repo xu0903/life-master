@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BarChart3, BookOpenCheck, Flame, ListTodo, Settings as SettingsIcon, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Habits from './components/Habits'
@@ -13,6 +13,8 @@ import { PasswordRecovery } from './components/AccountPanel'
 import { usePlanHabitSync } from './hooks/usePlanHabitSync'
 import Rooms from './components/Rooms'
 import Settings from './components/Settings'
+import WordPushCard from './components/WordPushCard'
+import { useAppBadge } from './hooks/useAppBadge'
 import WordPopupProvider from './components/WordPopup'
 import { useCloudBackup } from './hooks/useCloudBackup'
 import { useProgressSync } from './hooks/useProgress'
@@ -42,13 +44,33 @@ function readJoinCode(): string {
   return code
 }
 
+/** 點推播單字卡打開 App 時，網址會帶 ?card=<卡片 id>；讀完就從網址列拿掉 */
+function readCardParam(): string | null {
+  const id = new URLSearchParams(location.search).get('card')
+  if (id) history.replaceState(null, '', location.pathname)
+  return id
+}
+
 export default function App() {
   const [joinCode] = useState(readJoinCode)
+  const [pushCard, setPushCard] = useState(readCardParam)
   const [tab, setTab] = useState<TabId>(joinCode ? 'rooms' : 'habits')
   const { themeId, setThemeId } = useTheme()
   useProgressSync()
   useCloudBackup()
   usePlanHabitSync()
+  useAppBadge()
+
+  // App 已經開著時點推播單字卡：service worker 傳訊息過來
+  useEffect(() => {
+    const sw = navigator.serviceWorker
+    if (!sw) return
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'open-card' && typeof e.data.cardId === 'string') setPushCard(e.data.cardId)
+    }
+    sw.addEventListener('message', onMessage)
+    return () => sw.removeEventListener('message', onMessage)
+  }, [])
   const [, setLearnMode] = useLocalStorage('lifemaster.learnMode', 'flip')
   const [, setCardFilter] = useLocalStorage('lifemaster.cardFilter', 'all')
   const activeLabel = TABS.find(t => t.id === tab)?.label
@@ -73,6 +95,7 @@ export default function App() {
         <UpdateToast />
         <BadgeCelebration />
         <PasswordRecovery />
+        {pushCard && <WordPushCard cardId={pushCard} onClose={() => setPushCard(null)} />}
 
         <main className="px-4 pt-2">
           {tab === 'habits' && (

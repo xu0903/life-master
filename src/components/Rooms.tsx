@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { BellRing, Check, Copy, Crown, Flame, Heart, LogOut, Pencil, Plus, Share2, Target, Trophy, UserMinus, X } from 'lucide-react'
 import Confetti from './Confetti'
+import Duel from './Duel'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useProgress } from '../hooks/useProgress'
 import { cloudEnabled } from '../utils/cloud'
@@ -487,6 +488,8 @@ export default function Rooms({ onOpenSettings, joinCode = '' }: { onOpenSetting
               還沒開啟通知，夥伴督促你時只有打開 App 才看得到。<span className="font-semibold underline">到設定開啟</span>
             </button>
           )}
+
+          {room.members.length > 1 && <Duel key={room.id} room={room} userId={userId} />}
 
           {nudges.length > 0 && (
             <div className="rounded-2xl bg-surface p-4 shadow-sm">

@@ -3,6 +3,7 @@ import { Pencil, Plus, SkipForward, Star, Trash2 } from 'lucide-react'
 import CardActions from './CardActions'
 import FlipCard from './FlipCard'
 import Dictionary from './Dictionary'
+import PhotoLookup from './PhotoLookup'
 import Grammar from './Grammar'
 import Listening from './Listening'
 import { GradeButtons, MasteryBar } from './Mastery'
@@ -184,6 +185,7 @@ export default function Flashcards() {
     return (
       <div className="space-y-4">
         {modeSwitch}
+        <PhotoLookup />
         <Dictionary />
       </div>
     )

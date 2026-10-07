@@ -20,6 +20,9 @@ import { ADV_LEVELS, CEEC_LEVELS, GEPT_LEVELS, VOCAB_CREDIT, hasGept, sourceLabe
 import { useHabits } from '../hooks/useHabits'
 import { useExams } from '../hooks/useExams'
 import { CHECKIN_REMIND_KEY } from '../hooks/useReminders'
+import { APP_BADGE_KEY, BADGE_OPTIONS, badgeSupported } from '../hooks/useAppBadge'
+import type { BadgeMode } from '../hooks/useAppBadge'
+import { WORD_PUSH_KEY, WORD_PUSH_TIMES } from '../utils/wordPush'
 import Guide from './Guide'
 import AccountPanel from './AccountPanel'
 import { APP_VERSION, formatBuildTime } from '../version'
@@ -927,6 +930,73 @@ function NotificationPanel() {
       </div>
       {tested === false && <p className="text-xs text-rose-500">測試通知發送失敗，請確認權限設定</p>}
       <CheckinReminder pushOn={pushOn} />
+      <WordPushSettings pushOn={pushOn} />
+      <BadgeSettings granted={permission === 'granted'} />
+    </div>
+  )
+}
+
+/** 推播單字卡：預設關閉，自己選時段才會發 */
+function WordPushSettings({ pushOn }: { pushOn: boolean }) {
+  const [times, setTimes] = useLocalStorage<string[]>(WORD_PUSH_KEY, [])
+  const toggle = (t: string) => setTimes(prev => (prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t].sort()))
+  return (
+    <div className="border-t border-line pt-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-fg">📘 推播單字卡</p>
+          <p className="text-xs text-muted">
+            {times.length ? `每天 ${times.join('、')} 推一個還不熟的字，點開翻答案` : '目前關閉，不會收到任何單字推播'}
+          </p>
+        </div>
+        {times.length ? (
+          <button onClick={() => setTimes([])} className="shrink-0 rounded-full bg-surface-2 px-3.5 py-1.5 text-sm text-muted">
+            關閉
+          </button>
+        ) : (
+          <button onClick={() => setTimes(['12:30'])} className="shrink-0 rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-on-primary">
+            開啟
+          </button>
+        )}
+      </div>
+      {times.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {WORD_PUSH_TIMES.map(t => (
+            <button
+              key={t}
+              onClick={() => toggle(t)}
+              className={`rounded-full px-3 py-1.5 text-sm tabular-nums ${times.includes(t) ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+      {times.length > 0 && !pushOn && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">需要先開啟上方的通知，單字卡才會送出</p>}
+    </div>
+  )
+}
+
+/** 主畫面圖示上的數字：預設關閉 */
+function BadgeSettings({ granted }: { granted: boolean }) {
+  const [mode, setMode] = useLocalStorage<BadgeMode>(APP_BADGE_KEY, 'off')
+  return (
+    <div className="border-t border-line pt-3">
+      <p className="text-sm font-medium text-fg">🔴 圖示上的數字</p>
+      <p className="text-xs text-muted">在主畫面的 App 圖示右上角顯示待辦數量，打開 App 時更新</p>
+      <div className="mt-2 grid grid-cols-4 gap-1.5">
+        {BADGE_OPTIONS.map(o => (
+          <button
+            key={o.value}
+            onClick={() => setMode(o.value)}
+            className={`rounded-xl py-2 text-xs ${mode === o.value ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {mode !== 'off' && !badgeSupported && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">這個環境不支援，iPhone 需要從主畫面打開 App（iOS 16.4 以上）</p>}
+      {mode !== 'off' && badgeSupported && !granted && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">iPhone 要先開啟上方的通知，圖示才會顯示數字</p>}
     </div>
   )
 }

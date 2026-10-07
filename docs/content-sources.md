@@ -18,9 +18,10 @@ LifeMaster 使用的每一項外部資料、AI 產出與第三方服務，以及
 | 6 | Claude（Anthropic）協助撰寫的原創內容 | 閱讀模擬題 3 份、聽力題 2 份、文法 20 單元、多益單字題庫、程式碼 | 產出歸使用者 | Anthropic 消費者條款（2025-10-08 起）：「Subject to your compliance with our Terms, we assign to you all of our right, title, and interest—if any—in Outputs.」 | ✅ 題目為原創，未抄錄 ETS 官方試題 | 條款也提醒輸出可能不正確，題目與解析需持續校對 |
 | 7 | TOEIC® 商標（ETS） | 「多益」「TOEIC」字樣出現在介面與說明 | Educational Testing Service | ETS 商標指南：第一次出現加註 ®；須附聲明 “TOEIC® is a registered trademark of ETS. This product is not endorsed or approved by ETS.”；**不得用於公司名、產品名、網域名稱、社群帳號**；未經同意不得翻譯或音譯 | ✅ 已在設定頁「來源與授權」加上聲明 | App 名稱、商店名稱、圖示**不可**放 TOEIC / 多益；只在說明裡描述用途 |
 | 8 | GitHub Pages | 網站主機 | GitHub | 不得用於「主要在促成商業交易」的網站或商業 SaaS；建議網站 1 GB 以內、每月約 100 GB 流量軟上限 | ✅ 目前免費、非商業 | 開始收費或內購時改用其他主機 |
-| 9 | Supabase（免費方案） | 雲端備份、推播排程、夥伴房間 | Supabase | 本次未逐條查證 | ⚠️ 待查 | 上架前查閱 Supabase Terms / AUP 與免費方案限制，並寫入隱私權政策 |
+| 9 | Supabase（免費方案） | 雲端備份、推播排程、夥伴房間、單字對戰（Realtime 頻道） | Supabase | 本次未逐條查證 | ⚠️ 待查 | 上架前查閱 Supabase Terms / AUP 與免費方案限制，並寫入隱私權政策 |
 | 10 | 開源套件 | React、lucide-react、supabase-js、Workbox 等 | 各作者 | 執行時期套件為 MIT / ISC 等寬鬆授權；建置工具含 MPL-2.0（lightningcss，未隨 App 發佈） | ✅ 可使用 | 上架版在「關於」頁附開源授權清單 |
 | 11 | 劍橋字典連結、裝置內建語音 | 單字卡的字典按鈕、未預錄的朗讀 | 各權利人 | 只提供連結或呼叫裝置功能，未複製內容 | ✅ 無需授權 | — |
+| 12 | Tesseract.js（OCR）與英文辨識模型 eng.traineddata | 字典「拍照查單字」（2026-10-07 加入）；第一次使用時從 jsDelivr CDN 下載程式與模型 | Tesseract.js 作者 / Google（tesseract-ocr/tessdata） | Tesseract.js 與 tessdata 皆為 Apache License 2.0：可商用、可修改，須保留授權與版權聲明 | ✅ 可使用；照片只在裝置上辨識，不會上傳 | 上架版的開源授權清單加入 Tesseract.js 與 tessdata（Apache-2.0）；隱私權政策寫明照片不離開裝置 |
 
 ## 需要寄出的授權申請
 

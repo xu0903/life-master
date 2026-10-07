@@ -9,6 +9,10 @@ import type { Todo } from '../data/todos'
 import { PUSH_EVENT, enablePush, isPushEnabled, syncReminders } from '../utils/push'
 import { addDays, toDateKey } from '../utils/date'
 import { showNotification } from '../utils/reminders'
+import { WORD_PUSH_KEY, wordPushItems } from '../utils/wordPush'
+import { FLASHCARDS_KEY } from '../data/flashcards'
+import type { Card } from '../data/flashcards'
+import { useWordStats } from './useDailyWords'
 
 /** 每日打卡提醒時間 HH:mm；空字串 = 關閉（預設） */
 export const CHECKIN_REMIND_KEY = 'lifemaster.checkinRemind'
@@ -27,6 +31,9 @@ export function useReminders() {
   const [habits] = useLocalStorage<Habit[]>(HABITS_KEY, DEFAULT_HABITS)
   const [pomodoro] = useLocalStorage<PomodoroState>(POMODORO_KEY, POMODORO_INITIAL)
   const [checkinTime] = useLocalStorage(CHECKIN_REMIND_KEY, '')
+  const [wordPushTimes] = useLocalStorage<string[]>(WORD_PUSH_KEY, [])
+  const [cards] = useLocalStorage<Card[]>(FLASHCARDS_KEY, [])
+  const [stats] = useWordStats()
 
   useEffect(() => {
     const check = () => {
@@ -106,10 +113,12 @@ export function useReminders() {
           fire_at: new Date(pomodoro.endAt).toISOString(),
         })
       }
+      // 推播單字卡：只有在設定裡自己選了時段才會排（預設關閉）
+      items.push(...wordPushItems(wordPushTimes, cards, stats, now))
       void syncReminders(items)
     }, 2000)
     return () => window.clearTimeout(timer)
-  }, [todos, habits, pomodoro.endAt, pomodoro.mode, checkinTime, pushOn])
+  }, [todos, habits, pomodoro.endAt, pomodoro.mode, checkinTime, wordPushTimes, cards, stats, pushOn])
 
   const dismiss = (id: string) => setAlerts(prev => prev.filter(t => t.id !== id))
 
