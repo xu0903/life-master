@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, GraduationCap, Headphones, Play, RotateCcw, Square, Timer, Trophy, X } from 'lucide-react'
 import QuestionBlock, { LookupText } from './QuestionBlock'
 import { LISTENING_HISTORY_KEY, LISTENING_PARTS, LISTENING_TESTS, VOICE_SAMPLES } from '../data/listening'
-import type { ListeningGroup, ListeningPart, ListeningRecord } from '../data/listening'
+import type { Graphic, ListeningGroup, ListeningLevel, ListeningPart, ListeningRecord } from '../data/listening'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useMistakeWords } from '../hooks/useMistakeWords'
 import { toDateKey } from '../utils/date'
@@ -45,6 +45,40 @@ function stopAll() {
   stopRecorded()
   stopSpeaking()
 }
+
+/** 看圖表作答的表格：比照正式考試，題本上印著時刻表、價目表等 */
+function GraphicTable({ graphic }: { graphic: Graphic }) {
+  const [head, ...body] = graphic.rows
+  return (
+    <div className="overflow-hidden rounded-2xl bg-surface shadow-sm ring-1 ring-line">
+      <p className="bg-surface-2 px-4 py-2 text-center text-sm font-semibold text-fg">{graphic.title}</p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-line">
+            {head.map((cell, i) => (
+              <th key={i} className="px-3 py-1.5 text-left text-xs font-semibold text-muted">
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, r) => (
+            <tr key={r} className="border-b border-line last:border-0">
+              {row.map((cell, i) => (
+                <td key={i} className="px-3 py-1.5 text-fg">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const LEVEL_LABEL: Record<ListeningLevel, string> = { basic: '基礎', '900': '900 級' }
 
 function SpeedPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
@@ -223,6 +257,8 @@ function ExamRun({
         </div>
       )}
 
+      {group.graphic && <GraphicTable graphic={group.graphic} />}
+
       <div className="space-y-6">
         {group.questions.map(q => (
           <QuestionBlock
@@ -260,11 +296,12 @@ function ReviewGroup({ group, answers, timedOut }: { group: ListeningGroup; answ
         </p>
         {group.transcript.map((line, i) => (
           <p key={i}>
-            {group.part === 3 && <span className="mr-1.5 font-semibold text-muted">{line.voice}:</span>}
+            {group.part === 3 && <span className="mr-1.5 font-semibold text-muted">{line.speaker ?? line.voice}:</span>}
             <LookupText text={line.text} />
           </p>
         ))}
       </div>
+      {group.graphic && <GraphicTable graphic={group.graphic} />}
       {wrong.map(q => (
         <div key={q.id} className="space-y-1">
           {timedOut.has(q.id) && <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-xs font-medium text-rose-600 dark:text-rose-400">超時未作答</span>}
@@ -471,6 +508,8 @@ export default function Listening() {
         <Player key={group.id} group={group} speed={speed} voices={voices} />
         <SpeedPicker value={speed} onChange={setSpeed} />
 
+        {group.graphic && <GraphicTable graphic={group.graphic} />}
+
         <div className="space-y-6">
           {group.questions.map(q => (
             <QuestionBlock
@@ -490,7 +529,7 @@ export default function Listening() {
             <div className="mt-2 space-y-2 text-[15px] leading-relaxed text-fg">
               {group.transcript.map((line, i) => (
                 <p key={i}>
-                  {group.part === 3 && <span className="mr-1.5 font-semibold text-muted">{line.voice}:</span>}
+                  {group.part === 3 && <span className="mr-1.5 font-semibold text-muted">{line.speaker ?? line.voice}:</span>}
                   <LookupText text={line.text} />
                 </p>
               ))}
@@ -613,17 +652,31 @@ export default function Listening() {
             音檔播完開始倒數：Part 2 每題 {EXAM_SECONDS[2]} 秒，Part 3、4 每題 {EXAM_SECONDS[3]} 秒，時間到自動跳下一題（比照正式考試）
           </p>
         )}
-        <div className="mb-1 flex gap-2">
-          {LISTENING_TESTS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTestId(t.id)}
-              className={`flex-1 rounded-full py-2 text-sm transition ${test.id === t.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
-            >
-              {t.name}
-            </button>
-          ))}
+        <div className="mb-1 space-y-2">
+          {(['basic', '900'] as const).map(level => {
+            const tests = LISTENING_TESTS.filter(t => t.level === level)
+            if (!tests.length) return null
+            return (
+              <div key={level} className="flex items-center gap-2">
+                <span className={`w-12 shrink-0 text-xs font-semibold ${level === '900' ? 'text-rose-500' : 'text-muted'}`}>{LEVEL_LABEL[level]}</span>
+                <div className="grid flex-1 grid-cols-2 gap-2">
+                  {tests.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setTestId(t.id)}
+                      className={`rounded-full py-2 text-sm transition ${test.id === t.id ? 'bg-primary font-semibold text-on-primary' : 'bg-surface-2 text-muted'}`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
+        {test.level === '900' && (
+          <p className="mb-1 text-xs text-faint">900 級：大量間接回答、言外之意、看圖表與三人對話，選項會換句話說，聽到的字常常是陷阱</p>
+        )}
         <ul className="divide-y divide-line">
           {LISTENING_PARTS.map(p => {
             const count = test.groups.filter(g => g.part === p.part).reduce((n, g) => n + g.questions.length, 0)

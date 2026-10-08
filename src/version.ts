@@ -4,6 +4,10 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.9.0': [
+    '聽力新增「900 級」聽力試題 3：大量間接回答、言外之意、看圖表題、三人對話，選項換句話說、聽到的字常常是陷阱',
+    '聽力試題分成「基礎」與「900 級」兩排，Part 3 支援三人對話，逐字稿標示 M1 / M2',
+  ],
   '1.8.0': [
     '夥伴新增「單字對戰」：房間裡的人一起搶答 10 題，即時看到彼此的分數，答越快分數越高',
     '字典新增「拍照查單字」：拍課本或考卷，把還不熟的字框出來，一鍵收進卡組（照片不會上傳）',

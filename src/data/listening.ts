@@ -1,32 +1,47 @@
 import { LISTENING_1 } from './listening1'
 import { LISTENING_2 } from './listening2'
+import { LISTENING_3 } from './listening3'
 import { buildQuestion } from './reading'
 import type { RawQuestion, ReadingQuestion } from './reading'
 
 export type Voice = 'M' | 'W'
+/** 三人對話用：M2 / W2 是同性別的第二位說話者，會換成另一個聲音與口音 */
+export type Speaker = Voice | 'M2' | 'W2'
+
+/** 難度：basic 是入門到中級；900 比照目標 900 分以上的坊間難度（間接回答、言外之意、看圖表、三人對話） */
+export type ListeningLevel = 'basic' | '900'
+
+/** 看圖表作答用的表格（第一列是表頭），例如時刻表、價目表、樓層表 */
+export interface Graphic {
+  title: string
+  rows: string[][]
+}
 
 export interface RawListening {
   id: string
   name: string
+  level?: ListeningLevel
   /** Part 2 應答問題：題目與三個回應都只用聽的 */
   part2: { q: string; o: [string, string, string]; ex: string }[]
   /** Part 3 簡短對話：每段 3 題 */
-  part3: { lines: [Voice, string][]; qs: RawQuestion[] }[]
+  part3: { lines: [Speaker, string][]; graphic?: Graphic; qs: RawQuestion[] }[]
   /** Part 4 簡短獨白：每段 3 題 */
-  part4: { label: string; voice: Voice; text: string; qs: RawQuestion[] }[]
+  part4: { label: string; voice: Voice; text: string; graphic?: Graphic; qs: RawQuestion[] }[]
 }
 
 export type ListeningPart = 2 | 3 | 4
 
 export const LISTENING_PARTS: { part: ListeningPart; label: string; desc: string }[] = [
   { part: 2, label: '應答問題', desc: '聽問句，選出最適合的回應' },
-  { part: 3, label: '簡短對話', desc: '兩人對話，每段 3 題' },
+  { part: 3, label: '簡短對話', desc: '兩到三人對話，每段 3 題' },
   { part: 4, label: '簡短獨白', desc: '廣播、留言、公告，每段 3 題' },
 ]
 
 export interface SpokenLine {
   voice: Voice
   text: string
+  /** 逐字稿上的說話者標示（三人對話才會有 M1 / M2 這種） */
+  speaker?: string
   /** 預先產生的真人化語音檔名（public/audio/ 底下）；檔案不存在時改用裝置語音 */
   audio?: string
   /** 預錄用的 AI 聲音與口音 */
@@ -74,10 +89,10 @@ function gapFor(part: ListeningPart, index: number): number | undefined {
   return undefined
 }
 
-function withAudio(lines: SpokenLine[], groupIndex: number, part: ListeningPart): SpokenLine[] {
-  // 同一題裡男聲、女聲各固定一個人；Part 2 的題目和選項本來就是不同性別的人念
-  return lines.map((line, i) => {
-    const spec = ttsSpec(groupIndex, line.voice)
+function withAudio(lines: (SpokenLine & { second?: boolean })[], groupIndex: number, part: ListeningPart): SpokenLine[] {
+  // 同一題裡男聲、女聲各固定一個人；Part 2 的題目和選項本來就是不同性別的人念；三人對話的第二位同性別說話者換下一組聲音
+  return lines.map(({ second, ...line }, i) => {
+    const spec = ttsSpec(groupIndex + (second ? 1 : 0), line.voice)
     return { ...line, audio: audioFileName(spec, line.text), tts: spec, gap: gapFor(part, i) }
   })
 }
@@ -87,6 +102,8 @@ export interface ListeningGroup {
   part: ListeningPart
   /** 音檔類型，例如 Announcement（Part 4） */
   label?: string
+  /** 看圖表作答的表格 */
+  graphic?: Graphic
   /** 要念出來的內容，依序播放 */
   audio: SpokenLine[]
   /** 對完答案後顯示的逐字稿 */
@@ -97,6 +114,7 @@ export interface ListeningGroup {
 export interface ListeningTest {
   id: string
   name: string
+  level: ListeningLevel
   groups: ListeningGroup[]
 }
 
@@ -122,12 +140,19 @@ function buildTest(raw: RawListening): ListeningTest {
   number = 32
   raw.part3.forEach((item, i) => {
     const id = `${raw.id}-3-${i}`
-    const lines = item.lines.map(([voice, text]) => ({ voice, text }))
+    const trio = item.lines.some(([s]) => s.length > 1)
+    const lines = item.lines.map(([speaker, text]) => ({
+      voice: speaker[0] as Voice,
+      text,
+      second: speaker.length > 1,
+      speaker: trio && item.lines.some(([s]) => s === `${speaker[0]}2`) ? (speaker.length > 1 ? speaker : `${speaker}1`) : speaker,
+    }))
     groups.push({
       id,
       part: 3,
+      graphic: item.graphic,
       audio: withAudio(lines, i, 4),
-      transcript: lines,
+      transcript: lines.map(({ second: _, ...line }) => line),
       questions: item.qs.map((q, k) => buildQuestion(q, `${id}-${k}`, number++, 'p3')),
     })
   })
@@ -139,15 +164,16 @@ function buildTest(raw: RawListening): ListeningTest {
       id,
       part: 4,
       label: item.label,
+      graphic: item.graphic,
       audio: withAudio(lines, i, 4),
       transcript: lines,
       questions: item.qs.map((q, k) => buildQuestion(q, `${id}-${k}`, number++, 'p4')),
     })
   })
-  return { id: raw.id, name: raw.name, groups }
+  return { id: raw.id, name: raw.name, level: raw.level ?? 'basic', groups }
 }
 
-export const LISTENING_TESTS: ListeningTest[] = [LISTENING_1, LISTENING_2].map(buildTest)
+export const LISTENING_TESTS: ListeningTest[] = [LISTENING_1, LISTENING_2, LISTENING_3].map(buildTest)
 
 export const LISTENING_HISTORY_KEY = 'lifemaster.listeningHistory'
 

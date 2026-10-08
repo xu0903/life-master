@@ -41,7 +41,8 @@ function instructionsFor(group: (typeof LISTENING_TESTS)[number]['groups'][numbe
     const prev = group.audio[index - 1]
     const role = index === 0 ? 'You start the conversation.' : `The other person just said: "${prev.text}" Reply to them naturally, reacting to what they said.`
     const end = index === group.audio.length - 1 ? ' This is the last line of the conversation.' : ''
-    return `${BASE(accent)} This is one turn in a two-person workplace conversation (phone call or face to face). ${role}${end} Show appropriate emotion (friendly, apologetic, relieved, surprised) based on the words.`
+    const people = group.transcript.some(l => l.speaker?.endsWith('2')) ? 'three-person' : 'two-person'
+    return `${BASE(accent)} This is one turn in a ${people} workplace conversation (phone call or face to face). ${role}${end} Show appropriate emotion (friendly, apologetic, relieved, surprised) based on the words.`
   }
   const label = group.label ?? 'talk'
   const style = /message/i.test(label)
