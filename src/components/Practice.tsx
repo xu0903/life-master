@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, BookOpen, Check, CircleHelp, FastForward, Lightbulb, RotateCcw, Trophy, X } from 'lucide-react'
 import CardActions from './CardActions'
@@ -208,11 +208,12 @@ export default function Practice({ sources }: { sources: PracticeSource[] }) {
 
   // 地獄模式：選擇題限時，時間到沒選就算錯（給空白答案）
   const timed = phase === 'quiz' && hell && !!q?.options && !answered
+  // 只在換題或作答後重設計時；時間到時用最新的 submit
+  const timeUp = useEffectEvent(() => submit(''))
   useEffect(() => {
     if (!timed) return
-    const t = window.setTimeout(() => submit(''), HELL_SECONDS * 1000)
+    const t = window.setTimeout(() => timeUp(), HELL_SECONDS * 1000)
     return () => window.clearTimeout(t)
-    // 只在換題或作答後重設計時；submit 每次 render 都是新的函式，不放進依賴
   }, [timed, q?.id])
 
   // ---------- 設定 ----------
