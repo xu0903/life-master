@@ -22,6 +22,7 @@ LifeMaster 使用的每一項外部資料、AI 產出與第三方服務，以及
 | 10 | 開源套件 | React、lucide-react、supabase-js、Workbox 等 | 各作者 | 執行時期套件為 MIT / ISC 等寬鬆授權；建置工具含 MPL-2.0（lightningcss，未隨 App 發佈） | ✅ 可使用 | 上架版在「關於」頁附開源授權清單 |
 | 11 | 劍橋字典連結、裝置內建語音 | 單字卡的字典按鈕、未預錄的朗讀 | 各權利人 | 只提供連結或呼叫裝置功能，未複製內容 | ✅ 無需授權 | — |
 | 12 | Tesseract.js（OCR）與英文辨識模型 eng.traineddata | 字典「拍照查單字」（2026-10-07 加入）；第一次使用時從 jsDelivr CDN 下載程式與模型 | Tesseract.js 作者 / Google（tesseract-ocr/tessdata） | Tesseract.js 與 tessdata 皆為 Apache License 2.0：可商用、可修改，須保留授權與版權聲明 | ✅ 可使用；照片只在裝置上辨識，不會上傳 | 上架版的開源授權清單加入 Tesseract.js 與 tessdata（Apache-2.0）；隱私權政策寫明照片不離開裝置 |
+| 13 | Scriptable（使用者自行安裝的第三方 App） | 備忘錄小工具（2026-10-21 加入，預設關閉）：App 產生腳本給使用者貼到 Scriptable，主畫面／鎖定畫面顯示備忘；備忘存在 Supabase `memo_widgets` 表，憑專屬 token 讀取 | Simon B. Støvring | App 沒有內嵌或轉發 Scriptable 的程式，只提供使用者自己執行的腳本文字 | ✅ 無需授權 | 隱私權政策寫明開啟小工具後備忘會上傳雲端，關閉即刪除 |
 
 ## 需要寄出的授權申請
 

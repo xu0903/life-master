@@ -11,7 +11,7 @@ const LAST_SYNC_KEY = 'lm-sync-at'
 export const SYNC_STATUS_EVENT = 'lifemaster:sync-status'
 
 /** 作答中的進度、計時器這類只屬於這台裝置的暫存，不同步 */
-const LOCAL_ONLY = ['lifemaster.readingSession', 'lifemaster.practice.', 'lifemaster.habitTimer', 'lifemaster.seenVersion']
+const LOCAL_ONLY = ['lifemaster.readingSession', 'lifemaster.practice.', 'lifemaster.habitTimer', 'lifemaster.seenVersion', 'lifemaster.memoWidget']
 /** 剛登入（或換帳號）的裝置：下一次同步以帳號裡的資料為準 */
 const FRESH_KEY = 'lm-sync-fresh'
 export function markFreshDevice() {

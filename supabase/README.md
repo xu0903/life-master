@@ -29,6 +29,7 @@ Dashboard → SQL Editor，依序執行：
 4. `supabase/rooms-update.sql`（鼓勵訊息、每晚 9 點自動提醒還沒打卡的夥伴）
 
 ## 4. 部署推播函式
+5. `supabase/memo-widget.sql`（備忘錄的主畫面／鎖定畫面小工具）
 
 ```bash
 npx supabase login

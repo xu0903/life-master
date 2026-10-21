@@ -3,6 +3,7 @@ import { BarChart3, BookOpenCheck, Flame, ListTodo, Settings as SettingsIcon, Us
 import type { LucideIcon } from 'lucide-react'
 import Habits from './components/Habits'
 import Todos from './components/Todos'
+import Memos, { useMemoWidgetSync } from './components/Memos'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
 import EnvBanner from './components/EnvBanner'
@@ -25,7 +26,7 @@ type TabId = 'habits' | 'todos' | 'flashcards' | 'rooms' | 'stats' | 'settings'
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: 'habits', label: '習慣打卡', Icon: Flame },
-  { id: 'todos', label: '待辦清單', Icon: ListTodo },
+  { id: 'todos', label: '待辦／備忘', Icon: ListTodo },
   { id: 'flashcards', label: '學習', Icon: BookOpenCheck },
   { id: 'rooms', label: '夥伴', Icon: Users },
   { id: 'stats', label: '統計', Icon: BarChart3 },
@@ -60,6 +61,7 @@ export default function App() {
   useCloudBackup()
   usePlanHabitSync()
   useAppBadge()
+  useMemoWidgetSync()
 
   // App 已經開著時點推播單字卡：service worker 傳訊息過來
   useEffect(() => {
@@ -73,7 +75,8 @@ export default function App() {
   }, [])
   const [, setLearnMode] = useLocalStorage('lifemaster.learnMode', 'flip')
   const [, setCardFilter] = useLocalStorage('lifemaster.cardFilter', 'all')
-  const activeLabel = TABS.find(t => t.id === tab)?.label
+  const [todoArea, setTodoArea] = useLocalStorage<'todos' | 'memos'>('lifemaster.todoArea', 'todos')
+  const activeLabel = tab === 'todos' ? (todoArea === 'memos' ? '備忘錄' : '待辦清單') : TABS.find(t => t.id === tab)?.label
 
   const today = new Date().toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' })
 
@@ -109,7 +112,27 @@ export default function App() {
               onTodos={() => goTo('todos')}
             />
           )}
-          {tab === 'todos' && <Todos />}
+          {tab === 'todos' && (
+            <>
+              <div className="mb-4 flex rounded-xl bg-surface p-1 shadow-sm">
+                {(
+                  [
+                    ['todos', '📋 待辦'],
+                    ['memos', '📝 備忘'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTodoArea(id)}
+                    className={`flex-1 rounded-lg py-1.5 text-sm transition ${todoArea === id ? 'bg-primary font-semibold text-on-primary' : 'text-muted'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {todoArea === 'memos' ? <Memos /> : <Todos />}
+            </>
+          )}
           {tab === 'flashcards' && <Flashcards />}
           {tab === 'rooms' && <Rooms onOpenSettings={() => goTo('settings')} joinCode={joinCode} />}
           {tab === 'stats' && <Stats />}

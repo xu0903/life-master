@@ -14,7 +14,8 @@ export function createBackup(): BackupFile {
   const data: Record<string, unknown> = {}
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
-    if (!key?.startsWith(PREFIX)) continue
+    // 小工具的連結綁在這台裝置的帳號上，不放進備份
+    if (!key?.startsWith(PREFIX) || key.startsWith('lifemaster.memoWidget')) continue
     try {
       data[key] = JSON.parse(localStorage.getItem(key) ?? 'null')
     } catch {

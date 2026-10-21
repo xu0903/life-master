@@ -4,6 +4,10 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.10.0': [
+    '新增「備忘錄」：在「待辦／備忘」分頁切換，沒有期限、純粹記事情，可以換行、置頂',
+    '備忘可以顯示在 iPhone 主畫面與鎖定畫面（預設關閉）：在備忘頁最下面開啟，透過免費的 Scriptable App 顯示',
+  ],
   '1.9.0': [
     '聽力新增「900 級」聽力試題 3：大量間接回答、言外之意、看圖表題、三人對話，選項換句話說、聽到的字常常是陷阱',
     '聽力試題分成「基礎」與「900 級」兩排，Part 3 支援三人對話，逐字稿標示 M1 / M2',
