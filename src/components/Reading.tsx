@@ -485,7 +485,9 @@ export default function Reading() {
   }, [running, setSession])
 
   // 模擬考時間到自動交卷
+  // 每次 render 後檢查：計時、跳題、從儲存的進度回來都可能讓時間用完
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- 由計時器驅動的自動交卷，不是可在 render 推導的狀態
     if (isFull && remaining <= 0) finish()
   })
 
@@ -498,6 +500,7 @@ export default function Reading() {
       ...session,
       timedOut: [...(session.timedOut ?? []), current.id],
     }
+    // oxlint-disable-next-line react/set-state-in-effect -- 由計時器驅動的自動跳題 / 交卷
     if (session.index >= groups.length - 1) finish(updated)
     else {
       setSession({ ...updated, index: session.index + 1 })
