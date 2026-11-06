@@ -16,6 +16,7 @@ import {
   rotateWidgetToken,
   widgetScript,
 } from '../utils/memoWidget'
+import { TODAY_WIDGET_KEY, pushTodayWidget } from '../utils/todayWidget'
 
 const fieldBase =
   'w-full resize-none rounded-xl border border-line bg-surface px-4 py-2.5 text-base text-fg outline-none placeholder:text-faint focus:border-primary focus:ring-2 focus:ring-primary/20'
@@ -183,6 +184,7 @@ export function MemoWidgetPanel() {
   const [on] = useLocalStorage<boolean>(WIDGET_ON_KEY, false)
   const [token] = useLocalStorage<string | null>(WIDGET_TOKEN_KEY, null)
   const [stale] = useLocalStorage<boolean>(WIDGET_STALE_KEY, false)
+  const [todayOn, setTodayOn] = useLocalStorage<boolean>(TODAY_WIDGET_KEY, false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -232,7 +234,32 @@ export function MemoWidgetPanel() {
         <li>主畫面：長按空白處 → 左上角「編輯」→「加入小工具」→ Scriptable</li>
         <li>鎖定畫面：長按鎖定畫面 →「自訂」→ 鎖定畫面 → 點時間下方的小工具區 → Scriptable</li>
         <li>加好後長按小工具 →「編輯小工具」→ Script 選剛剛貼上的那個</li>
+        <li>想顯示今日任務：同一個畫面的 Parameter 填 <code className="rounded bg-surface-2 px-1">today</code>（可以一個放備忘、一個放今日任務）</li>
       </ol>
+      <label className="flex items-start gap-3 rounded-xl bg-surface-2 px-3 py-2.5">
+        <input
+          type="checkbox"
+          checked={todayOn}
+          disabled={busy}
+          onChange={e => {
+            const next = e.target.checked
+            if (next) {
+              setTodayOn(true)
+              return
+            }
+            void run(async () => {
+              const ok = await pushTodayWidget(null)
+              if (ok) setTodayOn(false)
+              return ok
+            }, '關閉失敗，請確認網路')
+          }}
+          className="mt-0.5 h-4 w-4 accent-primary"
+        />
+        <span>
+          <span className="block font-medium text-fg">小工具也顯示今日任務</span>
+          <span className="block text-xs text-muted">習慣打卡、連續天數 🔥、今日單字與到期待辦。開啟後習慣名稱與到期待辦的標題會上傳到雲端。</span>
+        </span>
+      </label>
       <p className="text-xs text-faint">iPhone 大約每 15 分鐘到 1 小時更新一次小工具，剛改的備忘會晚一點才出現。腳本裡有你的專屬連結，不要傳給別人。</p>
       <div className="flex gap-2">
         <button onClick={copy} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 font-semibold text-on-primary">

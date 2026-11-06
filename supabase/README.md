@@ -28,6 +28,15 @@ Dashboard → SQL Editor，依序執行：
 3. `supabase/backup.sql`（雲端備份與還原碼）
 4. `supabase/rooms-update.sql`（鼓勵訊息、每晚 9 點自動提醒還沒打卡的夥伴）
 5. `supabase/memo-widget.sql`（備忘錄的主畫面／鎖定畫面小工具）
+6. `supabase/today-widget.sql`（小工具的「今日任務」模式；要在 memo-widget.sql 之後執行）
+
+### 自動套用 SQL（選用）
+
+在 GitHub repo 的 Settings → Secrets and variables → Actions 新增 `SUPABASE_ACCESS_TOKEN`
+（到 https://supabase.com/dashboard/account/tokens 產生的個人存取權杖；tw-stock-signals 用的是同一組）之後，
+push 到 main 時只要有改到 `supabase/*.sql`，部署前就會透過 Supabase Management API 自動套用改到的那幾支（依上面的順序，每支包在一個 transaction 裡）。
+專案代號從 `.env` 的 `VITE_SUPABASE_URL` 取。
+沒設定這個 secret 時會跳過並留下警告；也可以到 Actions → Deploy → Run workflow，手動填檔名（或 `all`）套用。
 
 ## 4. 部署推播函式
 

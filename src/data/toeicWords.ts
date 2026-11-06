@@ -1,5 +1,7 @@
 import type { Card } from './flashcards'
-import { addDaysKey } from '../utils/date'
+import { addDaysKey, diffDays } from '../utils/date'
+import { initState, intervalFor, nextState } from '../utils/fsrs'
+import type { MemoryState, Rating } from '../utils/fsrs'
 import { WORDS_600 } from './words600'
 import { WORDS_800 } from './words800'
 import { WORDS_900 } from './words900'
@@ -1468,10 +1470,10 @@ function shuffle<T>(items: T[], random: () => number): T[] {
 
 const LEVEL_OF = new Map(WORD_INFO.map(w => [`toeic-${w.word}`, w.level]))
 
-// ---------- 間隔重複（Leitner 盒子法） ----------
+// ---------- 間隔重複（FSRS；舊版是 Leitner 盒子法） ----------
 
 export interface WordStat {
-  /** 0 = 不熟，數字越大越熟 */
+  /** 熟練度 0–5，0 = 不熟；改用 FSRS 後由穩定度換算，介面上的顏色與進度條沿用這個欄位 */
   box: number
   /** 下次該複習的日期 YYYY-MM-DD */
   due: string
@@ -1485,6 +1487,12 @@ export interface WordStat {
   lastWrong?: string
   /** 第一次作答的日期，用來畫學習曲線 */
   first?: string
+  /** FSRS 記憶穩定度（天）；舊資料沒有，下次作答時由盒子推估 */
+  s?: number
+  /** FSRS 難度 1–10 */
+  d?: number
+  /** 上次作答的日期 */
+  last?: string
 }
 
 /** 熟練度三段評分（仿 WordUp）：紅 不記得 / 黃 有印象 / 綠 我記得 */
@@ -1497,27 +1505,66 @@ export function toGrade(value: Grade | boolean | undefined): Grade | undefined {
   return value
 }
 
-/** 各盒子答「我記得」後，隔幾天再複習；最高盒子 = 精通 */
+/** 舊版 Leitner 各盒子的間隔；現在用來把穩定度換算成 0–5 的熟練度 */
 const BOX_INTERVALS = [1, 2, 4, 7, 15, 30]
 export const MAX_BOX = BOX_INTERVALS.length - 1
 
+const RATING: Record<Grade, Rating> = { forgot: 1, vague: 2, good: 3 }
+
+/** 穩定度換算熟練度：穩定度 ≥ 30 天 = 精通；答錯的字一律回到 0 */
+export function boxFor(stability: number, grade: Grade): number {
+  if (grade === 'forgot') return 0
+  let box = 1
+  BOX_INTERVALS.forEach((days, i) => {
+    if (stability >= days) box = Math.max(box, i)
+  })
+  return box
+}
+
 /**
- * 依評分更新熟練度：
- * - 不記得：回到 0，明天再複習
- * - 有印象：退一格（至少 1），明天再複習
- * - 我記得：升一格，間隔拉長
+ * 舊的 Leitner 資料第一次用 FSRS 時，推估記憶狀態：
+ * 穩定度 ≈ 當時盒子的間隔，難度依答錯比例，上次作答日 ≈ 到期日往前推一個間隔。
+ */
+export function migrateStat(stat: WordStat): MemoryState & { last: string } {
+  if (stat.s !== undefined && stat.d !== undefined && stat.last) return { stability: stat.s, difficulty: stat.d, last: stat.last }
+  const interval = stat.box > 0 ? BOX_INTERVALS[Math.min(stat.box, MAX_BOX)] : 1
+  const misses = stat.wrong + 0.5 * (stat.vague ?? 0)
+  const total = stat.right + stat.wrong + (stat.vague ?? 0)
+  return {
+    stability: stat.box > 0 ? interval : 0.5,
+    difficulty: Math.min(10, Math.max(1, 2 + (8 * (misses + 1)) / (total + 2))),
+    last: stat.last ?? addDaysKey(stat.due, -interval),
+  }
+}
+
+/**
+ * 依評分更新熟練度（FSRS）：
+ * - 不記得：穩定度大幅下降，明天再複習
+ * - 有印象：穩定度小幅上升，間隔稍微拉長
+ * - 我記得：穩定度依「隔多久還記得」上升，越久沒看還記得，加得越多
+ * 下次複習日 = 記得機率降到 90% 的那天。
  */
 export function nextStat(stat: WordStat | undefined, grade: Grade, today: string): WordStat {
+  const rating = RATING[grade]
+  let memory: MemoryState
+  if (!stat) {
+    memory = initState(rating)
+  } else {
+    const prev = migrateStat(stat)
+    memory = nextState(prev, diffDays(prev.last, today), rating)
+  }
   const prev = stat ?? { box: 0, due: today, right: 0, wrong: 0, first: today }
-  const box = grade === 'good' ? Math.min(prev.box + 1, MAX_BOX) : grade === 'vague' ? Math.max(1, prev.box - 1) : 0
   return {
     first: prev.first,
-    box,
-    due: addDaysKey(today, grade === 'good' ? BOX_INTERVALS[box] : 1),
+    box: boxFor(memory.stability, grade),
+    due: addDaysKey(today, grade === 'forgot' ? 1 : intervalFor(memory.stability)),
     right: prev.right + (grade === 'good' ? 1 : 0),
     wrong: prev.wrong + (grade === 'forgot' ? 1 : 0),
     vague: (prev.vague ?? 0) + (grade === 'vague' ? 1 : 0),
     lastWrong: grade === 'forgot' ? today : prev.lastWrong,
+    s: Math.round(memory.stability * 1000) / 1000,
+    d: Math.round(memory.difficulty * 1000) / 1000,
+    last: today,
   }
 }
 
