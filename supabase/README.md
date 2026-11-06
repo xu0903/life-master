@@ -32,10 +32,10 @@ Dashboard → SQL Editor，依序執行：
 
 ### 自動套用 SQL（選用）
 
-在 GitHub repo 的 Settings → Secrets and variables → Actions 新增 `SUPABASE_DB_URL` 之後，
-push 到 main 時只要有改到 `supabase/*.sql`，部署前就會自動用 psql 套用改到的那幾支（依上面的順序）。
-值從 Supabase Dashboard 上方的 **Connect** → **Session pooler** 複製 URI，把 `[YOUR-PASSWORD]` 換成資料庫密碼
-（GitHub Actions 只有 IPv4，不能用 Direct connection）。
+在 GitHub repo 的 Settings → Secrets and variables → Actions 新增 `SUPABASE_ACCESS_TOKEN`
+（到 https://supabase.com/dashboard/account/tokens 產生的個人存取權杖；tw-stock-signals 用的是同一組）之後，
+push 到 main 時只要有改到 `supabase/*.sql`，部署前就會透過 Supabase Management API 自動套用改到的那幾支（依上面的順序，每支包在一個 transaction 裡）。
+專案代號從 `.env` 的 `VITE_SUPABASE_URL` 取。
 沒設定這個 secret 時會跳過並留下警告；也可以到 Actions → Deploy → Run workflow，手動填檔名（或 `all`）套用。
 
 ## 4. 部署推播函式
