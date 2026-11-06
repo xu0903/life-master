@@ -28,6 +28,7 @@ Dashboard → SQL Editor，依序執行：
 3. `supabase/backup.sql`（雲端備份與還原碼）
 4. `supabase/rooms-update.sql`（鼓勵訊息、每晚 9 點自動提醒還沒打卡的夥伴）
 5. `supabase/memo-widget.sql`（備忘錄的主畫面／鎖定畫面小工具）
+6. `supabase/today-widget.sql`（小工具的「今日任務」模式；要在 memo-widget.sql 之後執行）
 
 ## 4. 部署推播函式
 

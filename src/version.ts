@@ -4,6 +4,10 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.11.0': [
+    '單字複習改用 FSRS 演算法：依「隔多久還記得」安排下次複習，記得牢的字間隔拉得更長、容易忘的字更常出現；舊的熟練度會自動換算',
+    '主畫面小工具新增「今日任務」（預設關閉）：習慣打卡、連續天數 🔥、今日單字與到期待辦；在備忘頁最下面開啟，Scriptable 的 Parameter 填 today',
+  ],
   '1.10.0': [
     '新增「備忘錄」：在「待辦／備忘」分頁切換，沒有期限、純粹記事情，可以換行、置頂',
     '備忘可以顯示在 iPhone 主畫面與鎖定畫面（預設關閉）：在備忘頁最下面開啟，透過免費的 Scriptable App 顯示',
