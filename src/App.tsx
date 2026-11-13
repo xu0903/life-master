@@ -5,6 +5,7 @@ import Habits from './components/Habits'
 import Todos from './components/Todos'
 import Memos, { useMemoWidgetSync } from './components/Memos'
 import { useTodayWidgetSync } from './hooks/useTodayWidget'
+import { useKeyboardOpen } from './hooks/useKeyboardOpen'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
 import EnvBanner from './components/EnvBanner'
@@ -64,6 +65,7 @@ export default function App() {
   useAppBadge()
   useMemoWidgetSync()
   useTodayWidgetSync()
+  const keyboardOpen = useKeyboardOpen()
 
   // App 已經開著時點推播單字卡：service worker 傳訊息過來
   useEffect(() => {
@@ -141,7 +143,7 @@ export default function App() {
           {tab === 'settings' && <Settings themeId={themeId} onThemeChange={setThemeId} />}
         </main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <nav className={`fixed inset-x-0 bottom-0 z-10 ${keyboardOpen ? 'hidden' : ''} border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur`}>
           <div className="mx-auto flex max-w-lg">
             {TABS.map(({ id, label, Icon }) => (
               <button
