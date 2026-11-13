@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import Habits from './components/Habits'
 import Todos from './components/Todos'
 import Memos, { useMemoWidgetSync } from './components/Memos'
+import { useTodayWidgetSync } from './hooks/useTodayWidget'
 import Flashcards from './components/Flashcards'
 import Stats from './components/Stats'
 import EnvBanner from './components/EnvBanner'
@@ -62,6 +63,7 @@ export default function App() {
   usePlanHabitSync()
   useAppBadge()
   useMemoWidgetSync()
+  useTodayWidgetSync()
 
   // App 已經開著時點推播單字卡：service worker 傳訊息過來
   useEffect(() => {

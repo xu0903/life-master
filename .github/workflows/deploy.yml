@@ -1,10 +1,16 @@
 # push 到 main 就自動 build 並部署到 GitHub Pages
+# 這次 push 有改到 supabase/*.sql 的話，部署前會先套用到 Supabase 資料庫（需要 SUPABASE_ACCESS_TOKEN 這個 secret，和 tw-stock-signals 用同一組）
 name: Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sql:
+        description: '要套用的 SQL（例如 today-widget.sql，多個用空白分開；all = 全部；留空 = 不套用）'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -16,7 +22,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: 套用 Supabase SQL
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          BEFORE: ${{ github.event.before }}
+          INPUT_SQL: ${{ github.event.inputs.sql }}
+        run: |
+          # 依相依順序；每支 SQL 都可以重複執行
+          ORDER="schema.sql backup.sql rooms-update.sql rooms-challenge.sql memo-widget.sql today-widget.sql"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$INPUT_SQL" = "all" ]; then wanted="$ORDER"; else wanted="$INPUT_SQL"; fi
+          else
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then BEFORE="HEAD~1"; fi
+            wanted=$(git diff --name-only "$BEFORE" HEAD -- 'supabase/*.sql' | xargs -r -n1 basename | tr '\n' ' ')
+          fi
+          if [ -z "${wanted// }" ]; then echo "沒有要套用的 SQL"; exit 0; fi
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::warning::有 SQL 要套用（$wanted），但還沒設定 SUPABASE_ACCESS_TOKEN secret，先跳過；設好後到 Actions 手動執行並填入檔名"
+            exit 0
+          fi
+          # 專案代號從 .env 的 VITE_SUPABASE_URL 取
+          REF=$(sed -n 's#^VITE_SUPABASE_URL=https://\([a-z0-9]*\)\.supabase\.co.*#\1#p' .env)
+          if [ -z "$REF" ]; then echo "::error::.env 裡找不到 VITE_SUPABASE_URL"; exit 1; fi
+          # 依 ORDER 排序，其餘（新檔）排在最後
+          files=""
+          for f in $ORDER; do case " $wanted " in *" $f "*) files="$files $f";; esac; done
+          for f in $wanted; do case " $ORDER " in *" $f "*) ;; *) files="$files $f";; esac; done
+          for f in $files; do
+            if [ ! -f "supabase/$f" ]; then echo "::error::找不到 supabase/$f"; exit 1; fi
+            echo "▶ 套用 supabase/$f"
+            # Management API 的 SQL 查詢；整支包在一個 transaction 裡，失敗就整支不生效
+            body=$( { echo 'begin;'; cat "supabase/$f"; printf '\ncommit;\n'; } | jq -Rs '{query: .}')
+            code=$(curl -sS -o /tmp/sql-out.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data-binary "$body")
+            if [ "${code:0:1}" != "2" ]; then echo "::error::supabase/$f 套用失敗（HTTP $code）"; cat /tmp/sql-out.json; echo; exit 1; fi
+          done
+
   build:
+    needs: migrate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
