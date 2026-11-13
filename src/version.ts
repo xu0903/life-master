@@ -4,6 +4,7 @@ export const APP_VERSION: string = __APP_VERSION__
 export const BUILD_TIME: string = __BUILD_TIME__
 
 export const CHANGELOG: Record<string, string[]> = {
+  '1.11.1': ['修正 iPhone 上鍵盤收起後，下方分頁列卡在畫面中間的問題；打字時分頁列會先藏起來'],
   '1.11.0': [
     '單字複習改用 FSRS 演算法：依「隔多久還記得」安排下次複習，記得牢的字間隔拉得更長、容易忘的字更常出現；舊的熟練度會自動換算',
     '主畫面小工具新增「今日任務」（預設關閉）：習慣打卡、連續天數 🔥、今日單字與到期待辦；在備忘頁最下面開啟，Scriptable 的 Parameter 填 today',
